@@ -3,11 +3,11 @@
 </p>
 
 <h1 align="center">
-  EternalLoop For Windows (1.1.0)
+  EternalLoop For Windows (1.2.0)
 </h1>
 
 <p align="center">
-  A local infinite music player that analyzes your songs and creates smooth loop branches automatically, with optional local AI similarity for branch filtering.
+  A local infinite music player that analyzes your songs and creates smooth loop branches automatically, with optional local AI similarity and branch-quality filters for reducing weak jump candidates.
 </p>
 
 <p align="center">
@@ -62,6 +62,11 @@ The application is built for offline use. Your audio stays on your machine, anal
 - Phrase-safe branch validation to reduce “starts right, continues wrong” jumps.
 - Musical landing offset to avoid jumping directly into the same repeated phrase.
 - Metric-position penalty to reduce jumps that lose the downbeat.
+- Beat duration similarity gate to reduce timing-incompatible jumps.
+- Beat confidence penalty to reduce branches from unstable regions.
+- Preset-aware metric position filtering.
+- Branch source density limiting to avoid overly dense loop maps.
+- Local microsegment fingerprints to compare sub-beat musical structure.
 - Anti-repeat branch cooldown to avoid getting stuck on the same jump.
 - End-guard logic to keep playback from reaching the end of the track.
 - Local analysis cache for faster reopening of previously analyzed songs.
@@ -126,6 +131,8 @@ Jukebox graph
 Seamless playback engine
 ```
 
+In V1.2.0, the self-similarity matrix also applies branch-quality gates for duration similarity, beat confidence, metric position, local AI compatibility, and local microsegment structure. Microsegments split each beat into smaller sub-beat fingerprints before branch candidates are accepted.
+
 The result is a loop map that allows the player to jump from one beat to another compatible beat while trying to preserve musical continuity.
 
 ## Loop Intelligence
@@ -139,6 +146,11 @@ The current engine includes several safeguards designed to make branches feel mo
 | Musical landing offset | Uses a similar anchor point but lands slightly after it to reduce obvious phrase repetition |
 | Loudness-aware scoring | Avoids jumps between sections with very different energy levels |
 | Position-in-bar penalty | Reduces jumps that land on the wrong beat of the bar |
+| Beat duration similarity | Penalizes jumps between beats with incompatible durations |
+| Beat confidence penalty | Penalizes candidates involving unstable beat detections |
+| Preset-aware metric gate | Makes metric-position filtering stricter in Conservative and more flexible in Wild |
+| Branch source density cap | Limits how many beats can become branch origins |
+| Local microsegments | Compares sub-beat structure to reduce false-positive matches |
 | Chroma median filtering | Reduces pitch-class noise and short harmonic spikes |
 | Phrase continuation validation | Checks that the destination continues well after the jump |
 | Adaptive branch thresholding | Prevents branch graphs from becoming overly dense |
@@ -367,6 +379,25 @@ After publishing, test the generated executable before packaging:
 10. Confirm cached tracks load correctly.
 
 ## Version History
+
+### Version 1.2.0
+
+Branch Quality release.
+
+This version improves loop branch quality by adding local anti-false-positive filters inspired by the strongest musical ideas behind infinite jukebox-style branch selection, without relying on Spotify, Echo Nest, cloud analysis, or external APIs.
+
+Highlights:
+
+- Added beat duration similarity filtering.
+- Added beat confidence penalty.
+- Added preset-aware metric position filtering.
+- Added branch source density limiting.
+- Added local microsegment / sub-beat fingerprints.
+- Added microsegment-based branch gate/penalty.
+- Added regression tests for preset strictness and branch-quality filters.
+- Preserved local AI similarity as a gate/penalty layer.
+- Preserved the classic branch finder as the base pipeline.
+- Preserved offline-first local analysis.
 
 ### Version 1.1.0
 
