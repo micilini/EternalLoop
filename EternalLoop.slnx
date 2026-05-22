@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+  </Folder>
+  <Project Path="EternalLoop.App/EternalLoop.App.csproj" />
+  <Project Path="EternalLoop.Contracts/EternalLoop.Contracts.csproj" />
+  <Project Path="EternalLoop.Core.Tests/EternalLoop.Core.Tests.csproj" />
+  <Project Path="EternalLoop.Core/EternalLoop.Core.csproj" />
+</Solution>

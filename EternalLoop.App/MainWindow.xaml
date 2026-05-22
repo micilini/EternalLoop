@@ -1,0 +1,85 @@
+<Window x:Class="EternalLoop.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        Title="EternalLoop"
+        Height="760"
+        Width="1180"
+        MinHeight="600"
+        MinWidth="800"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="{StaticResource EL.Font.Primary}"
+        Background="{StaticResource EL.Brush.MainBackground}">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="74" />
+            <RowDefinition Height="16" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0"
+                CornerRadius="26"
+                Background="#B8241A43"
+                BorderBrush="{StaticResource EL.Brush.PanelBorder}"
+                BorderThickness="1"
+                Padding="16 0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Width="43"
+                           Height="43"
+                           Source="/Assets/Images/eternalloop-logo.png"
+                           Stretch="Uniform"
+                           RenderOptions.BitmapScalingMode="HighQuality"
+                           SnapsToDevicePixels="True" />
+                    <StackPanel Margin="14 0 0 0" VerticalAlignment="Center">
+                        <TextBlock Text="EternalLoop" FontSize="18" FontWeight="SemiBold" Foreground="White" />
+                        <TextBlock Text="Offline infinite music player"
+                                   Style="{StaticResource EL.Text.Caption}"
+                                   TextTrimming="CharacterEllipsis"
+                                   MaxWidth="210" />
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <Button Style="{StaticResource EL.Button.IconPill}"
+                            Command="{Binding NavigateHomeCommand}"
+                            ToolTip="Home">
+                        <materialDesign:PackIcon Kind="HomeOutline" Width="22" Height="22" />
+                    </Button>
+                    <Button Style="{StaticResource EL.Button.IconPill}"
+                            Command="{Binding OpenAnotherTrackCommand}"
+                            ToolTip="Open another track"
+                            Margin="10 0 0 0">
+                        <materialDesign:PackIcon Kind="FolderOpenOutline" Width="22" Height="22" />
+                    </Button>
+                    <Button Style="{StaticResource EL.Button.IconPill}"
+                            Command="{Binding NavigateRecentTracksCommand}"
+                            ToolTip="Recent tracks"
+                            Margin="10 0 0 0">
+                        <materialDesign:PackIcon Kind="History" Width="22" Height="22" />
+                    </Button>
+                    <Button Style="{StaticResource EL.Button.IconPill}"
+                            Command="{Binding NavigateSettingsCommand}"
+                            ToolTip="Settings"
+                            Margin="10 0 0 0">
+                        <materialDesign:PackIcon Kind="CogOutline" Width="22" Height="22" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="2"
+                CornerRadius="30"
+                BorderBrush="{StaticResource EL.Brush.PanelBorder}"
+                BorderThickness="1"
+                Background="#A60F0A1D">
+            <ContentControl Content="{Binding CurrentViewModel}" />
+        </Border>
+    </Grid>
+</Window>

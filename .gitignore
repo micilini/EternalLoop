@@ -1,0 +1,15 @@
+.vs/
+bin/
+obj/
+**/bin/
+**/obj/
+*.user
+*.suo
+*.rsuser
+TestResults/
+*.zip
+/*.mp3
+/*.wav
+/*.flac
+/*.m4a
+/*.aac
