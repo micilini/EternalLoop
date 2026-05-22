@@ -3,11 +3,11 @@
 </p>
 
 <h1 align="center">
-  EternalLoop For Windows (1.0.0)
+  EternalLoop For Windows (1.1.0)
 </h1>
 
 <p align="center">
-  A local infinite music player that analyzes your songs and creates smooth loop branches automatically.
+  A local infinite music player that analyzes your songs and creates smooth loop branches automatically, with optional local AI similarity for branch filtering.
 </p>
 
 <p align="center">
@@ -68,6 +68,12 @@ The application is built for offline use. Your audio stays on your machine, anal
 - Recent tracks list.
 - Track artwork extraction where available.
 - Conservative, Balanced, and Wild tuning presets.
+- Optional local AI similarity mode using a bundled ONNX model.
+- CPU-first ONNX Runtime inference.
+- AI branch filtering works as a penalty/gate, never as an absolute boost.
+- AI can be disabled for faster classic DSP analysis.
+- AI failure fallback keeps playback available with classic analysis.
+- AI diagnostics are available when model inference fails for a track.
 - Reanalysis option when you want to rebuild the loop map.
 - High-quality neon circular visualization inspired by infinite jukebox-style branch maps.
 - Single-instance mutex to prevent multiple app instances from running at the same time.
@@ -94,27 +100,21 @@ Local audio file
 Audio loader / decoder
         │
         ▼
-Mono conversion + resampling
-        │
-        ▼
-Feature extraction
+Classic DSP analysis
         ├─ MFCC / timbre
         ├─ Chroma / pitch classes
         ├─ RMS / loudness
-        └─ Spectral flux
+        └─ Spectral flux / beats
         │
-        ▼
-Beat tracking
-        │
-        ▼
-Beat feature aggregation
-        ├─ Timbre
-        ├─ Pitches
-        ├─ Loudness
-        └─ Position in bar
-        │
-        ▼
-Self-similarity matrix
+        ├───────────────┐
+        │               ▼
+        │        Local AI preprocessing
+        │        ├─ 16 kHz mono audio
+        │        ├─ Mel spectrogram patches [128 x 96]
+        │        └─ ONNX Runtime CPU embeddings [512]
+        │               │
+        ▼               ▼
+Self-similarity matrix with AI gate/penalty
         │
         ▼
 Branch finder
@@ -195,6 +195,8 @@ Any public, commercial, paid, store-distributed, or bundled release must validat
 EternalLoop uses ONNX Runtime CPU for local AI model inference. The Discogs-EffNet model files must exist under `Assets/Models/DiscogsEffNet`; run `.\tools\download-ai-models.ps1` before AI tests or publish. DirectML and GPU execution are not part of this version.
 
 The local AI foundation includes model assets, ONNX Runtime CPU loading, and deterministic preprocessing that prepares mel patches compatible with the packaged model.
+
+The runtime ONNX contract used by EternalLoop is `melspectrogram -> embeddings [512]`.
 
 ### Local AI Similarity
 
