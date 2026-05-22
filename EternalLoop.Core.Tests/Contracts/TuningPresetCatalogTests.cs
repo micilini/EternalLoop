@@ -163,9 +163,9 @@ public sealed class TuningPresetCatalogTests
         preset.MaxBranchSourceRatio.Should().Be(0.22);
         preset.UseMicrosegmentSimilarity.Should().BeTrue();
         preset.MicrosegmentCount.Should().Be(4);
-        preset.MicrosegmentPenaltyStartThreshold.Should().Be(0.82);
-        preset.MicrosegmentRejectionThreshold.Should().Be(0.70);
-        preset.MicrosegmentPenaltyStrength.Should().Be(0.25);
+        preset.MicrosegmentPenaltyStartThreshold.Should().Be(0.80);
+        preset.MicrosegmentRejectionThreshold.Should().Be(0.64);
+        preset.MicrosegmentPenaltyStrength.Should().Be(0.18);
     }
 
     [Fact]
@@ -202,8 +202,8 @@ public sealed class TuningPresetCatalogTests
         preset.MaxBranchSourceRatio.Should().Be(0.34);
         preset.UseMicrosegmentSimilarity.Should().BeTrue();
         preset.MicrosegmentCount.Should().Be(3);
-        preset.MicrosegmentPenaltyStartThreshold.Should().Be(0.76);
-        preset.MicrosegmentRejectionThreshold.Should().Be(0.62);
-        preset.MicrosegmentPenaltyStrength.Should().Be(0.16);
+        preset.MicrosegmentPenaltyStartThreshold.Should().Be(0.70);
+        preset.MicrosegmentRejectionThreshold.Should().Be(0.50);
+        preset.MicrosegmentPenaltyStrength.Should().Be(0.10);
     }
 }

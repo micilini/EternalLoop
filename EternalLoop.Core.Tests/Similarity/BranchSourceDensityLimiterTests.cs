@@ -23,18 +23,33 @@ public sealed class BranchSourceDensityLimiterTests
     }
 
     [Fact]
-    public void Limit_reduces_sources_when_above_target_limit()
+    public void Limit_should_not_prune_sources_between_target_and_max_ratio()
     {
-        var edges = CreateEdges(sourceCount: 12, edgesPerSource: 1);
+        var edges = CreateEdges(sourceCount: 24, edgesPerSource: 1);
 
         var limited = BranchSourceDensityLimiter.Limit(
             edges,
-            beatCount: 50,
+            beatCount: 100,
             maxBranchesPerBeat: 1,
-            targetBranchSourceRatio: 0.10,
-            maxBranchSourceRatio: 0.20);
+            targetBranchSourceRatio: 0.16,
+            maxBranchSourceRatio: 0.30);
 
-        limited.Select(edge => edge.FromBeat).Distinct().Should().HaveCount(5);
+        limited.Select(edge => edge.FromBeat).Distinct().Should().HaveCount(24);
+    }
+
+    [Fact]
+    public void Limit_should_prune_sources_above_max_ratio()
+    {
+        var edges = CreateEdges(sourceCount: 40, edgesPerSource: 1);
+
+        var limited = BranchSourceDensityLimiter.Limit(
+            edges,
+            beatCount: 100,
+            maxBranchesPerBeat: 1,
+            targetBranchSourceRatio: 0.16,
+            maxBranchSourceRatio: 0.30);
+
+        limited.Select(edge => edge.FromBeat).Distinct().Should().HaveCount(30);
     }
 
     [Fact]
@@ -53,7 +68,7 @@ public sealed class BranchSourceDensityLimiterTests
             beatCount: 20,
             maxBranchesPerBeat: 1,
             targetBranchSourceRatio: 0.10,
-            maxBranchSourceRatio: 0.20);
+            maxBranchSourceRatio: 0.10);
 
         limited.Select(edge => edge.FromBeat).Should().BeEquivalentTo([1, 3]);
     }
@@ -92,7 +107,7 @@ public sealed class BranchSourceDensityLimiterTests
     }
 
     [Fact]
-    public void Limit_uses_max_ratio_when_target_ratio_is_invalid()
+    public void Limit_uses_max_ratio_as_hard_cap_when_target_ratio_is_invalid()
     {
         var edges = CreateEdges(sourceCount: 10, edgesPerSource: 1);
 

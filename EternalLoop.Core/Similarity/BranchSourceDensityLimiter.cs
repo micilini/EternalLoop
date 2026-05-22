@@ -20,12 +20,11 @@ public static class BranchSourceDensityLimiter
             return [];
         }
 
-        var sourceLimit = CalculateSourceLimit(
+        var hardSourceLimit = CalculateSourceLimit(
             beatCount,
-            targetBranchSourceRatio,
             maxBranchSourceRatio);
 
-        if (sourceLimit <= 0)
+        if (hardSourceLimit <= 0)
         {
             return [];
         }
@@ -43,7 +42,7 @@ public static class BranchSourceDensityLimiter
             .Where(group => group.Edges.Count > 0)
             .ToArray();
 
-        if (sourceGroups.Length <= sourceLimit)
+        if (sourceGroups.Length <= hardSourceLimit)
         {
             return sourceGroups
                 .SelectMany(group => group.Edges)
@@ -57,7 +56,7 @@ public static class BranchSourceDensityLimiter
             .OrderByDescending(group => group.BestScore)
             .ThenByDescending(group => group.EdgeCount)
             .ThenBy(group => group.FromBeat)
-            .Take(sourceLimit)
+            .Take(hardSourceLimit)
             .SelectMany(group => group.Edges)
             .OrderBy(edge => edge.FromBeat)
             .ThenByDescending(edge => edge.Similarity)
@@ -67,27 +66,16 @@ public static class BranchSourceDensityLimiter
 
     private static int CalculateSourceLimit(
         int beatCount,
-        double targetBranchSourceRatio,
-        double maxBranchSourceRatio)
+        double branchSourceRatio)
     {
-        var maxRatio = ClampRatio(maxBranchSourceRatio);
-        var targetRatio = ClampRatio(targetBranchSourceRatio);
+        var ratio = ClampRatio(branchSourceRatio);
 
-        if (maxRatio <= 0.0 && targetRatio <= 0.0)
+        if (ratio <= 0.0)
         {
             return 0;
         }
 
-        var effectiveRatio = targetRatio > 0.0
-            ? targetRatio
-            : maxRatio;
-
-        if (maxRatio > 0.0)
-        {
-            effectiveRatio = Math.Min(effectiveRatio, maxRatio);
-        }
-
-        var sourceLimit = (int)Math.Ceiling(beatCount * effectiveRatio);
+        var sourceLimit = (int)Math.Ceiling(beatCount * ratio);
         return Math.Clamp(sourceLimit, 1, beatCount);
     }
 

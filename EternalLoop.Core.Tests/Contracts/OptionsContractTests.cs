@@ -65,9 +65,9 @@ public sealed class OptionsContractTests
         options.MaxBranchSourceRatio.Should().Be(0.22);
         options.UseMicrosegmentSimilarity.Should().BeTrue();
         options.MicrosegmentCount.Should().Be(4);
-        options.MicrosegmentPenaltyStartThreshold.Should().Be(0.82);
-        options.MicrosegmentRejectionThreshold.Should().Be(0.70);
-        options.MicrosegmentPenaltyStrength.Should().Be(0.25);
+        options.MicrosegmentPenaltyStartThreshold.Should().Be(0.80);
+        options.MicrosegmentRejectionThreshold.Should().Be(0.64);
+        options.MicrosegmentPenaltyStrength.Should().Be(0.18);
     }
 
     [Fact]

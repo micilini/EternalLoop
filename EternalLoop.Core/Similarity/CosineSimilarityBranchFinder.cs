@@ -62,7 +62,7 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
             threshold + Math.Max(0.0, options.ContinuationThresholdMargin),
             0.0,
             1.0);
-        var targetMaxEdges = GetAdaptiveTargetMaxEdges(beats.Count);
+        var targetMaxEdges = GetAdaptiveTargetMaxEdges(beats.Count, maxBranchesPerBeat, options);
 
         var edges = BuildEdges(
             matrix,
@@ -106,7 +106,22 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
             options.TargetBranchSourceRatio,
             options.MaxBranchSourceRatio);
 
-        return densityLimitedEdges
+        var orderedEdges = densityLimitedEdges
+            .OrderBy(edge => edge.FromBeat)
+            .ThenByDescending(edge => edge.Similarity)
+            .ThenBy(edge => edge.ToBeat)
+            .ToArray();
+
+        if (orderedEdges.Length <= MaximumAdaptiveTargetEdges)
+        {
+            return orderedEdges;
+        }
+
+        return orderedEdges
+            .OrderByDescending(edge => edge.Similarity)
+            .ThenBy(edge => edge.FromBeat)
+            .ThenBy(edge => edge.ToBeat)
+            .Take(MaximumAdaptiveTargetEdges)
             .OrderBy(edge => edge.FromBeat)
             .ThenByDescending(edge => edge.Similarity)
             .ThenBy(edge => edge.ToBeat)
@@ -261,11 +276,37 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
         return false;
     }
 
-    private static int GetAdaptiveTargetMaxEdges(int beatCount)
+    private static int GetAdaptiveTargetMaxEdges(
+        int beatCount,
+        int maxBranchesPerBeat,
+        BranchFindingOptions options)
     {
+        var hardSourceLimit = CalculateHardSourceLimit(beatCount, options.MaxBranchSourceRatio);
+        var presetBudget = hardSourceLimit * Math.Max(1, maxBranchesPerBeat);
+        var minimum = beatCount < MinimumAdaptiveTargetEdges
+            ? Math.Max(1, beatCount)
+            : 1;
+
         return Math.Clamp(
-            beatCount,
-            MinimumAdaptiveTargetEdges,
+            presetBudget,
+            minimum,
             MaximumAdaptiveTargetEdges);
+    }
+
+    private static int CalculateHardSourceLimit(int beatCount, double maxBranchSourceRatio)
+    {
+        if (beatCount <= 0)
+        {
+            return 0;
+        }
+
+        if (!double.IsFinite(maxBranchSourceRatio) || maxBranchSourceRatio <= 0.000001)
+        {
+            return beatCount;
+        }
+
+        var ratio = Math.Clamp(maxBranchSourceRatio, 0.0, 1.0);
+        var sourceLimit = (int)Math.Ceiling(beatCount * ratio);
+        return Math.Clamp(sourceLimit, 1, beatCount);
     }
 }

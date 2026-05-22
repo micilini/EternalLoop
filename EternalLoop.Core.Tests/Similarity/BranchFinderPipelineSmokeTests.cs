@@ -158,7 +158,7 @@ public sealed class BranchFinderPipelineSmokeTests
         });
 
         edges.Should().NotBeEmpty();
-        edges.Select(edge => edge.FromBeat).Distinct().Should().HaveCountLessThanOrEqualTo(11);
+        edges.Select(edge => edge.FromBeat).Distinct().Should().HaveCountLessThanOrEqualTo(15);
         edges.GroupBy(edge => edge.FromBeat).Should().OnlyContain(group => group.Count() <= 3);
     }
 

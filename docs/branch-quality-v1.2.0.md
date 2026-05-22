@@ -28,6 +28,29 @@ The new filters never boost a branch score. They can preserve, penalize, or reje
 
 Microsegments split each beat into smaller local fingerprints. They help catch cases where two beats look similar as a whole, but their internal structure does not match.
 
+## Branch source density
+
+Branch source density has two preset values:
+
+- `TargetBranchSourceRatio` is a calibration and diagnostics target.
+- `MaxBranchSourceRatio` is the hard cap used to prune excessive source beats.
+
+The limiter only prunes source beats when the final source density exceeds the max ratio. It does not use the target ratio as a hard cutoff.
+
+## Diagnostics
+
+Set `ETERNALLOOP_EXPORT_BRANCH_CSV=1` before running the app to export branch diagnostics to:
+
+`%LocalAppData%/EternalLoop/Diagnostics/BranchQuality`
+
+The CSV includes final branch edges only. It does not include audio samples, full file paths or embeddings.
+
+To summarize an Infinite Jukebox SVG export for rough comparison, run:
+
+```powershell
+.\tools\summarize-infinite-jukebox-svg.ps1 -SvgPath .\song-infinite-jukebox.svg
+```
+
 ## No external APIs
 
 This feature does not use Spotify, Echo Nest, cloud analysis, or any external service.

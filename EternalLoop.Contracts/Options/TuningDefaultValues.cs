@@ -49,9 +49,9 @@ public static class TuningDefaultValues
 
     public const bool UseMicrosegmentSimilarity = true;
     public const int MicrosegmentCount = 4;
-    public const double MicrosegmentPenaltyStartThreshold = 0.82;
-    public const double MicrosegmentRejectionThreshold = 0.70;
-    public const double MicrosegmentPenaltyStrength = 0.25;
+    public const double MicrosegmentPenaltyStartThreshold = 0.80;
+    public const double MicrosegmentRejectionThreshold = 0.64;
+    public const double MicrosegmentPenaltyStrength = 0.18;
 
     public const int MinLookaheadDepth = 1;
     public const int MaxLookaheadDepth = 8;

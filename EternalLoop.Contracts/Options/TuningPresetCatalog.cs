@@ -69,9 +69,9 @@ public static class TuningPresetCatalog
             MaxBranchSourceRatio = 0.22,
             UseMicrosegmentSimilarity = true,
             MicrosegmentCount = 4,
-            MicrosegmentPenaltyStartThreshold = 0.82,
-            MicrosegmentRejectionThreshold = 0.70,
-            MicrosegmentPenaltyStrength = 0.25
+            MicrosegmentPenaltyStartThreshold = 0.80,
+            MicrosegmentRejectionThreshold = 0.64,
+            MicrosegmentPenaltyStrength = 0.18
         },
         new TuningPresetDefinition
         {
@@ -100,9 +100,9 @@ public static class TuningPresetCatalog
             MaxBranchSourceRatio = 0.34,
             UseMicrosegmentSimilarity = true,
             MicrosegmentCount = 3,
-            MicrosegmentPenaltyStartThreshold = 0.76,
-            MicrosegmentRejectionThreshold = 0.62,
-            MicrosegmentPenaltyStrength = 0.16
+            MicrosegmentPenaltyStartThreshold = 0.70,
+            MicrosegmentRejectionThreshold = 0.50,
+            MicrosegmentPenaltyStrength = 0.10
         }
     ];
 

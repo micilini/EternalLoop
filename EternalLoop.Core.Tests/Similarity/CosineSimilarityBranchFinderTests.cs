@@ -496,7 +496,63 @@ public sealed class CosineSimilarityBranchFinderTests
             UseAiSimilarity = false
         });
 
-        edges.Select(edge => edge.FromBeat).Distinct().Should().HaveCountLessThanOrEqualTo(13);
+        edges.Select(edge => edge.FromBeat).Distinct().Should().HaveCountLessThanOrEqualTo(18);
+    }
+
+    [Fact]
+    public void Adaptive_budget_should_be_preset_aware()
+    {
+        var finder = new CosineSimilarityBranchFinder();
+        var beats = CreateIdenticalBeats(467);
+
+        var conservative = finder.FindBranches(beats, CreatePresetBudgetOptions(
+            maxBranchesPerBeat: 2,
+            maxBranchSourceRatio: 0.14));
+        var balanced = finder.FindBranches(beats, CreatePresetBudgetOptions(
+            maxBranchesPerBeat: 3,
+            maxBranchSourceRatio: 0.22));
+        var wild = finder.FindBranches(beats, CreatePresetBudgetOptions(
+            maxBranchesPerBeat: 5,
+            maxBranchSourceRatio: 0.34));
+
+        conservative.Count.Should().BeLessThan(balanced.Count);
+        balanced.Count.Should().BeLessThan(wild.Count);
+        wild.Count.Should().BeLessThanOrEqualTo(650);
+    }
+
+    [Fact]
+    public void Wild_should_not_use_smaller_adaptive_budget_than_balanced()
+    {
+        var finder = new CosineSimilarityBranchFinder();
+        var beats = CreateIdenticalBeats(240);
+
+        var balanced = finder.FindBranches(beats, CreatePresetBudgetOptions(
+            maxBranchesPerBeat: 3,
+            maxBranchSourceRatio: 0.22));
+        var wild = finder.FindBranches(beats, CreatePresetBudgetOptions(
+            maxBranchesPerBeat: 5,
+            maxBranchSourceRatio: 0.34));
+
+        wild.Count.Should().BeGreaterThanOrEqualTo(balanced.Count);
+        wild.Select(edge => edge.FromBeat).Distinct().Count()
+            .Should().BeGreaterThanOrEqualTo(balanced.Select(edge => edge.FromBeat).Distinct().Count());
+    }
+
+    [Fact]
+    public void Wild_should_not_produce_fewer_edges_than_balanced_on_dense_repeated_material()
+    {
+        var finder = new CosineSimilarityBranchFinder();
+        var beats = BuildPopMusicLikeBeats(count: 192, sections: 4);
+
+        var balanced = finder.FindBranches(beats, CreatePresetBudgetOptions(
+            maxBranchesPerBeat: 3,
+            maxBranchSourceRatio: 0.22));
+        var wild = finder.FindBranches(beats, CreatePresetBudgetOptions(
+            maxBranchesPerBeat: 5,
+            maxBranchSourceRatio: 0.34));
+
+        wild.Count.Should().BeGreaterThanOrEqualTo(balanced.Count);
+        wild.Should().NotBeEmpty();
     }
 
     [Fact]
@@ -568,7 +624,7 @@ public sealed class CosineSimilarityBranchFinderTests
         });
 
         edges.Should().NotBeEmpty();
-        edges.Select(edge => edge.FromBeat).Distinct().Should().HaveCountLessThanOrEqualTo(11);
+        edges.Select(edge => edge.FromBeat).Distinct().Should().HaveCountLessThanOrEqualTo(15);
     }
 
     private static Beat[] CreateRepeatedBeats(int count = 20)
@@ -683,6 +739,29 @@ public sealed class CosineSimilarityBranchFinderTests
             AiRejectionThreshold = 0.58,
             AiPenaltyStartThreshold = 0.72,
             AiPenaltyStrength = 0.22
+        };
+    }
+
+    private static BranchFindingOptions CreatePresetBudgetOptions(
+        int maxBranchesPerBeat,
+        double maxBranchSourceRatio)
+    {
+        return new BranchFindingOptions
+        {
+            SimilarityThreshold = 0.0,
+            LookaheadDepth = 0,
+            ContinuationLookaheadDepth = 0,
+            ContinuationThresholdMargin = 0.0,
+            MinJumpDistance = 1,
+            MaxBranchesPerBeat = maxBranchesPerBeat,
+            LandingOffsetBeats = 0,
+            UseDurationSimilarityGate = false,
+            UseConfidencePenalty = false,
+            MetricPositionMode = MetricPositionMode.Disabled,
+            UseAiSimilarity = false,
+            UseMicrosegmentSimilarity = false,
+            TargetBranchSourceRatio = 0.16,
+            MaxBranchSourceRatio = maxBranchSourceRatio
         };
     }
 

@@ -91,9 +91,9 @@ public sealed class BranchQualityRegressionTests
             MetricPositionRejectionThreshold = 0.20,
             UseMicrosegmentSimilarity = true,
             MicrosegmentCount = 4,
-            MicrosegmentPenaltyStartThreshold = 0.82,
-            MicrosegmentRejectionThreshold = 0.70,
-            MicrosegmentPenaltyStrength = 0.25,
+            MicrosegmentPenaltyStartThreshold = 0.80,
+            MicrosegmentRejectionThreshold = 0.64,
+            MicrosegmentPenaltyStrength = 0.18,
             TimbreWeight = 1.0,
             PitchWeight = 0.0,
             LoudnessWeight = 0.0,
@@ -183,6 +183,20 @@ public sealed class BranchQualityRegressionTests
 
         filtered.Count.Should().BeLessThanOrEqualTo(baseline.Count);
         filtered.Should().OnlyContain(edge => HasValidScore(edge));
+    }
+
+    [Fact]
+    public void Wild_should_not_produce_fewer_edges_than_balanced_on_dense_repeated_material()
+    {
+        var analysis = CreateAnalysis(beatCount: 192, variant: TrackVariant.Healthy, includeAi: false);
+        var finder = new CosineSimilarityBranchFinder();
+
+        var balanced = finder.FindBranches(analysis, CreatePresetOptions(TuningPresetCatalog.BalancedId, useAiSimilarity: false));
+        var wild = finder.FindBranches(analysis, CreatePresetOptions(TuningPresetCatalog.WildId, useAiSimilarity: false));
+
+        wild.Count.Should().BeGreaterThanOrEqualTo(balanced.Count);
+        CountSources(wild).Should().BeGreaterThanOrEqualTo(CountSources(balanced));
+        wild.Should().NotBeEmpty();
     }
 
     private static TrackAnalysis CreateAnalysis(int beatCount, TrackVariant variant, bool includeAi)

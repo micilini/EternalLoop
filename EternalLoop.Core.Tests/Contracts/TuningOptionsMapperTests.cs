@@ -51,9 +51,9 @@ public sealed class TuningOptionsMapperTests
         options.MaxBranchSourceRatio.Should().Be(0.22);
         options.UseMicrosegmentSimilarity.Should().BeTrue();
         options.MicrosegmentCount.Should().Be(4);
-        options.MicrosegmentPenaltyStartThreshold.Should().Be(0.82);
-        options.MicrosegmentRejectionThreshold.Should().Be(0.70);
-        options.MicrosegmentPenaltyStrength.Should().Be(0.25);
+        options.MicrosegmentPenaltyStartThreshold.Should().Be(0.80);
+        options.MicrosegmentRejectionThreshold.Should().Be(0.64);
+        options.MicrosegmentPenaltyStrength.Should().Be(0.18);
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public sealed class TuningOptionsMapperTests
         options.MetricPositionMode.Should().Be(MetricPositionMode.StrongPenalty);
         options.DurationPenaltyStartRatio.Should().Be(0.90);
         options.TargetBranchSourceRatio.Should().Be(0.16);
-        options.MicrosegmentPenaltyStrength.Should().Be(0.25);
+        options.MicrosegmentPenaltyStrength.Should().Be(0.18);
     }
 
     [Fact]
@@ -101,7 +101,7 @@ public sealed class TuningOptionsMapperTests
         options.MetricPositionMode.Should().Be(MetricPositionMode.SoftPenalty);
         options.DurationPenaltyStartRatio.Should().Be(0.84);
         options.TargetBranchSourceRatio.Should().Be(0.25);
-        options.MicrosegmentPenaltyStrength.Should().Be(0.16);
+        options.MicrosegmentPenaltyStrength.Should().Be(0.10);
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed class TuningOptionsMapperTests
         options.MetricPositionMode.Should().Be(MetricPositionMode.StrongPenalty);
         options.DurationPenaltyStartRatio.Should().Be(0.90);
         options.TargetBranchSourceRatio.Should().Be(0.16);
-        options.MicrosegmentPenaltyStrength.Should().Be(0.25);
+        options.MicrosegmentPenaltyStrength.Should().Be(0.18);
     }
 
     [Fact]
