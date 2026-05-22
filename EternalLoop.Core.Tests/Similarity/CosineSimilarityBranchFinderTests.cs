@@ -1,3 +1,4 @@
+using EternalLoop.Contracts.Enums;
 using EternalLoop.Contracts.Models;
 using EternalLoop.Contracts.Options;
 using EternalLoop.Core.Similarity;
@@ -470,6 +471,104 @@ public sealed class CosineSimilarityBranchFinderTests
         });
 
         edges.Should().Contain(edge => edge.FromBeat == 0 && edge.ToBeat == 8);
+    }
+
+    [Fact]
+    public void FindBranches_Should_LimitSourceDensity_InBalancedMode()
+    {
+        var finder = new CosineSimilarityBranchFinder();
+        var beats = CreateIdenticalBeats(80);
+
+        var edges = finder.FindBranches(beats, new BranchFindingOptions
+        {
+            SimilarityThreshold = 0.0,
+            LookaheadDepth = 0,
+            ContinuationLookaheadDepth = 0,
+            ContinuationThresholdMargin = 0.0,
+            MinJumpDistance = 1,
+            MaxBranchesPerBeat = 3,
+            LandingOffsetBeats = 0,
+            TargetBranchSourceRatio = 0.16,
+            MaxBranchSourceRatio = 0.22,
+            UseDurationSimilarityGate = false,
+            UseConfidencePenalty = false,
+            MetricPositionMode = MetricPositionMode.Disabled,
+            UseAiSimilarity = false
+        });
+
+        edges.Select(edge => edge.FromBeat).Distinct().Should().HaveCountLessThanOrEqualTo(13);
+    }
+
+    [Fact]
+    public void FindBranches_Should_KeepConservativeSourceDensityBelowWild()
+    {
+        var finder = new CosineSimilarityBranchFinder();
+        var beats = CreateIdenticalBeats(100);
+        var conservativeOptions = new BranchFindingOptions
+        {
+            SimilarityThreshold = 0.0,
+            LookaheadDepth = 0,
+            ContinuationLookaheadDepth = 0,
+            ContinuationThresholdMargin = 0.0,
+            MinJumpDistance = 1,
+            MaxBranchesPerBeat = 3,
+            LandingOffsetBeats = 0,
+            UseDurationSimilarityGate = false,
+            UseConfidencePenalty = false,
+            MetricPositionMode = MetricPositionMode.Disabled,
+            UseAiSimilarity = false,
+            TargetBranchSourceRatio = 0.10,
+            MaxBranchSourceRatio = 0.14
+        };
+        var wildOptions = new BranchFindingOptions
+        {
+            SimilarityThreshold = 0.0,
+            LookaheadDepth = 0,
+            ContinuationLookaheadDepth = 0,
+            ContinuationThresholdMargin = 0.0,
+            MinJumpDistance = 1,
+            MaxBranchesPerBeat = 3,
+            LandingOffsetBeats = 0,
+            UseDurationSimilarityGate = false,
+            UseConfidencePenalty = false,
+            MetricPositionMode = MetricPositionMode.Disabled,
+            UseAiSimilarity = false,
+            TargetBranchSourceRatio = 0.25,
+            MaxBranchSourceRatio = 0.34
+        };
+
+        var conservativeEdges = finder.FindBranches(beats, conservativeOptions);
+        var wildEdges = finder.FindBranches(beats, wildOptions);
+
+        conservativeEdges.Select(edge => edge.FromBeat).Distinct().Count()
+            .Should().BeLessThan(wildEdges.Select(edge => edge.FromBeat).Distinct().Count());
+    }
+
+    [Fact]
+    public void FindBranches_Should_StillProduceEdgesAfterSourceDensityLimit()
+    {
+        var finder = new CosineSimilarityBranchFinder();
+        var beats = CreateIdenticalBeats(64);
+
+        var edges = finder.FindBranches(beats, new BranchFindingOptions
+        {
+            SimilarityThreshold = 0.90,
+            LookaheadDepth = 0,
+            ContinuationLookaheadDepth = 0,
+            ContinuationThresholdMargin = 0.0,
+            MinJumpDistance = 4,
+            MaxBranchesPerBeat = 2,
+            LandingOffsetBeats = 0,
+            TargetBranchSourceRatio = 0.16,
+            MaxBranchSourceRatio = 0.22,
+            UseDurationSimilarityGate = false,
+            UseConfidencePenalty = false,
+            MetricPositionMode = MetricPositionMode.Disabled,
+            UseAiSimilarity = false
+        });
+
+        edges.Should().NotBeEmpty();
+        edges.Select(edge => edge.FromBeat).Distinct().Should().HaveCountLessThanOrEqualTo(11);
     }
 
     private static Beat[] CreateRepeatedBeats(int count = 20)

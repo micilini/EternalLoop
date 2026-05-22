@@ -99,7 +99,14 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
                 continuationThreshold);
         }
 
-        return edges
+        var densityLimitedEdges = BranchSourceDensityLimiter.Limit(
+            edges,
+            beats.Count,
+            maxBranchesPerBeat,
+            options.TargetBranchSourceRatio,
+            options.MaxBranchSourceRatio);
+
+        return densityLimitedEdges
             .OrderBy(edge => edge.FromBeat)
             .ThenByDescending(edge => edge.Similarity)
             .ThenBy(edge => edge.ToBeat)

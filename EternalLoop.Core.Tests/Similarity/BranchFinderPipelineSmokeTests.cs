@@ -130,6 +130,37 @@ public sealed class BranchFinderPipelineSmokeTests
             edge.Similarity <= 1.0);
     }
 
+    [Fact]
+    public void F4Pipeline_Should_LimitBranchSourceDensityWithoutKillingGraph()
+    {
+        var beatTracking = new BeatTrackingResult
+        {
+            EstimatedBpm = 120,
+            BeatTimes = Enumerable.Range(0, 64).Select(i => i * 0.5).ToArray(),
+            Confidences = Enumerable.Repeat(1.0, 64).ToArray()
+        };
+        var features = CreateLongRepeatedFeatureMatrix(frameCount: 64);
+        var beats = BeatFeatureAggregator.AggregateFeatures(beatTracking, features, 22_050);
+        var finder = new CosineSimilarityBranchFinder();
+
+        var edges = finder.FindBranches(beats, new BranchFindingOptions
+        {
+            SimilarityThreshold = 0.80,
+            LookaheadDepth = 0,
+            ContinuationLookaheadDepth = 0,
+            ContinuationThresholdMargin = 0.0,
+            MinJumpDistance = 4,
+            MaxBranchesPerBeat = 3,
+            LandingOffsetBeats = 0,
+            TargetBranchSourceRatio = 0.16,
+            MaxBranchSourceRatio = 0.22
+        });
+
+        edges.Should().NotBeEmpty();
+        edges.Select(edge => edge.FromBeat).Distinct().Should().HaveCountLessThanOrEqualTo(11);
+        edges.GroupBy(edge => edge.FromBeat).Should().OnlyContain(group => group.Count() <= 3);
+    }
+
     private static FeatureMatrix CreateRepeatedFeatureMatrix()
     {
         var mfcc = new float[16][];
@@ -194,6 +225,33 @@ public sealed class BranchFinderPipelineSmokeTests
                     })
                     .ToArray()
             }
+        };
+    }
+
+    private static FeatureMatrix CreateLongRepeatedFeatureMatrix(int frameCount)
+    {
+        var mfcc = new float[frameCount][];
+        var chroma = new float[frameCount][];
+        var rms = new float[frameCount];
+        var flux = new float[frameCount];
+
+        for (var i = 0; i < frameCount; i++)
+        {
+            var section = i % 8;
+            mfcc[i] = [section + 1f, 0f];
+            chroma[i] = [section + 1f, 0f];
+            rms[i] = 1.0f;
+            flux[i] = 0.5f;
+        }
+
+        return new FeatureMatrix
+        {
+            Mfcc = mfcc,
+            Chroma = chroma,
+            SpectralFlux = flux,
+            Rms = rms,
+            HopLengthSamples = 11_025,
+            FrameSizeSamples = 2048
         };
     }
 
