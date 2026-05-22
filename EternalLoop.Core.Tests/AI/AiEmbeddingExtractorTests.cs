@@ -11,6 +11,8 @@ namespace EternalLoop.Core.Tests.AI;
 public sealed class AiEmbeddingExtractorTests
 {
     private const double TestDurationSeconds = 1.0;
+    private const double TestFrequencyHertz = 440.0;
+    private const double TestAmplitude = 0.5;
     private const float FirstEmbeddingValue = 1.0f;
     private const float SecondEmbeddingValue = 2.0f;
     private const int FirstEmbeddingIndex = 0;
@@ -154,6 +156,21 @@ public sealed class AiEmbeddingExtractorTests
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
+    [Fact]
+    public async Task ExtractAsync_processes_more_than_one_batch()
+    {
+        var model = new FakeEmbeddingModel();
+        var extractor = CreateExtractor(model);
+
+        var result = await extractor.ExtractAsync(CreateMultiBatchAudio(), new ProgressRecorder(), CancellationToken.None);
+
+        model.PredictCallCount.Should().BeGreaterThan(1);
+        result.Frames.Should().HaveCountGreaterThan(AiModelDefaultValues.DiscogsEffNetBatchSize);
+        result.Frames.Select(frame => frame.Index).Should().Equal(Enumerable.Range(0, result.Frames.Count));
+        result.Frames.Should().OnlyContain(frame => frame.Vector.Length == AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions);
+        result.Frames.SelectMany(frame => frame.Vector).Should().OnlyContain(value => float.IsFinite(value));
+    }
+
     private static AiEmbeddingExtractor CreateExtractor(FakeEmbeddingModel model)
     {
         return new AiEmbeddingExtractor(
@@ -165,9 +182,23 @@ public sealed class AiEmbeddingExtractorTests
             new FakeModelProvider());
     }
 
-    private static LoadedAudio CreateAudio()
+    private static LoadedAudio CreateAudio(double durationSeconds = TestDurationSeconds)
     {
-        return TestSignalFactory.CreateSineLoadedAudio(durationSeconds: TestDurationSeconds);
+        return TestSignalFactory.CreateSineLoadedAudio(durationSeconds: durationSeconds);
+    }
+
+    private static LoadedAudio CreateMultiBatchAudio()
+    {
+        var requiredPatchCount = AiModelDefaultValues.DiscogsEffNetBatchSize + 1;
+        var requiredFrameCount = (requiredPatchCount - 1) * AiPreprocessingDefaultValues.PatchHopFrames + 1;
+        var requiredSampleCount = (requiredFrameCount - 1) * AiPreprocessingDefaultValues.HopLength
+            + AiPreprocessingDefaultValues.FftSize;
+        var samples = Enumerable.Range(0, requiredSampleCount)
+            .Select(index => (float)(Math.Sin(Math.Tau * TestFrequencyHertz * index / AiPreprocessingDefaultValues.SampleRate) * TestAmplitude))
+            .ToArray();
+        var durationSeconds = samples.Length / (double)AiPreprocessingDefaultValues.SampleRate;
+
+        return new LoadedAudio(samples, AiPreprocessingDefaultValues.SampleRate, durationSeconds, "multi-batch-hash");
     }
 
     private static double VectorNorm(float[] vector)

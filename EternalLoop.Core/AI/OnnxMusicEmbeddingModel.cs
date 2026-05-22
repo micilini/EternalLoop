@@ -15,6 +15,7 @@ public sealed class OnnxMusicEmbeddingModel : ILocalMusicEmbeddingModel
     private const int InputPatchFramesDimensionIndex = 2;
     private const int OutputBatchDimensionIndex = 0;
     private const int OutputEmbeddingDimensionIndex = 1;
+    private const int MinimumRealPatchCount = 1;
 
     private readonly ILogger<OnnxMusicEmbeddingModel> _logger;
     private readonly AiModelManifest _manifest;
@@ -219,15 +220,34 @@ public sealed class OnnxMusicEmbeddingModel : ILocalMusicEmbeddingModel
 
     private IReadOnlyList<float[]> ReadRealEmbeddings(Tensor<float> outputTensor, int realPatchCount)
     {
+        var outputBatchSize = outputTensor.Dimensions[OutputBatchDimensionIndex];
+        var outputEmbeddingDimensions = outputTensor.Dimensions[OutputEmbeddingDimensionIndex];
+
+        if (realPatchCount < MinimumRealPatchCount || realPatchCount > outputBatchSize)
+        {
+            throw new OnnxInferenceException($"ONNX model '{ModelId}' cannot read '{realPatchCount}' real embeddings from output batch '{outputBatchSize}'.");
+        }
+
+        if (outputEmbeddingDimensions != EmbeddingDimensions)
+        {
+            throw new OnnxInferenceException($"ONNX model '{ModelId}' output '{_manifest.EmbeddingOutputName}' must have '{EmbeddingDimensions}' embedding dimensions but had '{outputEmbeddingDimensions}'.");
+        }
+
+        var outputValues = outputTensor.ToArray();
+        var expectedValueCount = outputBatchSize * outputEmbeddingDimensions;
+
+        if (outputValues.Length < expectedValueCount)
+        {
+            throw new OnnxInferenceException($"ONNX model '{ModelId}' output '{_manifest.EmbeddingOutputName}' contains '{outputValues.Length}' values but expected at least '{expectedValueCount}'.");
+        }
+
         var embeddings = new List<float[]>(realPatchCount);
 
         for (var patchIndex = 0; patchIndex < realPatchCount; patchIndex++)
         {
             var embedding = new float[EmbeddingDimensions];
-            for (var dimensionIndex = 0; dimensionIndex < EmbeddingDimensions; dimensionIndex++)
-            {
-                embedding[dimensionIndex] = outputTensor[patchIndex, dimensionIndex];
-            }
+            var offset = patchIndex * EmbeddingDimensions;
+            Array.Copy(outputValues, offset, embedding, 0, EmbeddingDimensions);
 
             embeddings.Add(embedding);
         }

@@ -21,12 +21,21 @@ public sealed class AiBeatEmbeddingAggregator
             return [];
         }
 
+        var validFrames = frames
+            .Where(frame => frame.Vector is { Length: > 0 })
+            .ToArray();
+
+        if (validFrames.Length == 0)
+        {
+            return [];
+        }
+
         var beatEmbeddings = new List<AiBeatEmbedding>(beats.Count);
 
         for (var beatIndex = 0; beatIndex < beats.Count; beatIndex++)
         {
             var beat = beats[beatIndex];
-            var selectedFrames = SelectFrames(beats, frames, options, beatIndex);
+            var selectedFrames = SelectFrames(beats, validFrames, options, beatIndex);
 
             if (selectedFrames.Count == 0)
             {
@@ -50,10 +59,14 @@ public sealed class AiBeatEmbeddingAggregator
         int beatIndex)
     {
         var beat = beats[beatIndex];
-        var previousDuration = beatIndex > 0 ? beats[beatIndex - 1].Duration : beat.Duration;
-        var nextDuration = beatIndex < beats.Count - 1 ? beats[beatIndex + 1].Duration : beat.Duration;
-        var windowStart = beat.Start - previousDuration * options.BeatContextBefore;
-        var windowEnd = beat.Start + beat.Duration + nextDuration * options.BeatContextAfter;
+        var beatStart = SanitizeTime(beat.Start);
+        var beatDuration = SanitizeDuration(beat.Duration);
+        var previousDuration = beatIndex > 0 ? SanitizeDuration(beats[beatIndex - 1].Duration) : beatDuration;
+        var nextDuration = beatIndex < beats.Count - 1 ? SanitizeDuration(beats[beatIndex + 1].Duration) : beatDuration;
+        var contextBefore = Math.Max(0, options.BeatContextBefore);
+        var contextAfter = Math.Max(0, options.BeatContextAfter);
+        var windowStart = beatStart - previousDuration * contextBefore;
+        var windowEnd = beatStart + beatDuration + nextDuration * contextAfter;
         var selected = frames
             .Where(frame =>
             {
@@ -67,7 +80,7 @@ public sealed class AiBeatEmbeddingAggregator
             return selected;
         }
 
-        var beatCenter = beat.Start + beat.Duration / 2.0;
+        var beatCenter = beatStart + beatDuration / 2.0;
         return
         [
             frames
@@ -79,6 +92,16 @@ public sealed class AiBeatEmbeddingAggregator
 
     private static float[] Average(IReadOnlyList<AiEmbeddingFrame> frames)
     {
+        if (frames.Count == 0)
+        {
+            throw new ArgumentException("AI embedding frame collection must not be empty.", nameof(frames));
+        }
+
+        if (frames[0].Vector is null)
+        {
+            throw new ArgumentException("AI embedding frame vectors must not be null.", nameof(frames));
+        }
+
         var dimension = frames[0].Vector.Length;
 
         if (dimension <= 0)
@@ -90,6 +113,11 @@ public sealed class AiBeatEmbeddingAggregator
 
         foreach (var frame in frames)
         {
+            if (frame.Vector is null)
+            {
+                throw new ArgumentException("AI embedding frame vectors must not be null.", nameof(frames));
+            }
+
             if (frame.Vector.Length != dimension)
             {
                 throw new ArgumentException("AI embedding frame vectors must have compatible dimensions.", nameof(frames));
@@ -124,7 +152,17 @@ public sealed class AiBeatEmbeddingAggregator
 
     private static double GetFrameCenter(AiEmbeddingFrame frame)
     {
-        return frame.Start + frame.Duration / 2.0;
+        return SanitizeTime(frame.Start) + SanitizeDuration(frame.Duration) / 2.0;
+    }
+
+    private static double SanitizeTime(double value)
+    {
+        return double.IsFinite(value) ? value : 0.0;
+    }
+
+    private static double SanitizeDuration(double value)
+    {
+        return double.IsFinite(value) && value > 0.0 ? value : 0.0;
     }
 
     private static float Sanitize(float value)

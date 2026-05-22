@@ -13,6 +13,7 @@ public sealed class OnnxMusicEmbeddingModelTests : IClassFixture<OnnxMusicEmbedd
     private const float SecondPatchValue = 0.002f;
     private const int SinglePatchCount = 1;
     private const int TwoPatchCount = 2;
+    private const int FullBatchPatchCount = AiModelDefaultValues.DiscogsEffNetBatchSize;
     private const int TooManyPatchCount = AiModelDefaultValues.DiscogsEffNetBatchSize + 1;
     private const int WrongMelBandCount = AiModelDefaultValues.DiscogsEffNetMelBands - 1;
 
@@ -59,6 +60,19 @@ public sealed class OnnxMusicEmbeddingModelTests : IClassFixture<OnnxMusicEmbedd
 
         embeddings.Should().HaveCount(TwoPatchCount);
         embeddings.All(embedding => embedding.Length == AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Predict_accepts_exactly_64_patches()
+    {
+        var patches = Enumerable.Range(0, FullBatchPatchCount)
+            .Select(_ => CreatePatch(FirstPatchValue))
+            .ToArray();
+
+        var embeddings = _fixture.Model.Predict(patches);
+
+        embeddings.Should().HaveCount(FullBatchPatchCount);
+        embeddings.Should().OnlyContain(embedding => embedding.Length == AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions);
     }
 
     [Fact]

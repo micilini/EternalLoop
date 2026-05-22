@@ -231,18 +231,39 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
 
         progressReporter.Report(AnalysisStage.RunningAi, 0.0, "Running local AI similarity");
         var aiOptions = CreateAiOptions(branchOptions);
-        var extractionResult = await _aiEmbeddingExtractor.ExtractAsync(audio, progressReporter, cancellationToken).ConfigureAwait(false);
-        var beatEmbeddings = _aiBeatEmbeddingAggregator.Aggregate(beats, extractionResult.Frames, aiOptions);
-        progressReporter.Report(AnalysisStage.RunningAi, 1.0, "AI beat embeddings ready");
-
-        return new AiAnalysisData
+        try
         {
-            ModelId = extractionResult.ModelId,
-            ModelVersion = extractionResult.ModelVersion,
-            SampleRate = extractionResult.SampleRate,
-            EmbeddingDimensions = extractionResult.EmbeddingDimensions,
-            BeatEmbeddings = beatEmbeddings
-        };
+            var extractionResult = await _aiEmbeddingExtractor.ExtractAsync(audio, progressReporter, cancellationToken).ConfigureAwait(false);
+            var beatEmbeddings = _aiBeatEmbeddingAggregator.Aggregate(beats, extractionResult.Frames, aiOptions);
+            progressReporter.Report(AnalysisStage.RunningAi, 1.0, "AI beat embeddings ready");
+
+            return new AiAnalysisData
+            {
+                ModelId = extractionResult.ModelId,
+                ModelVersion = extractionResult.ModelVersion,
+                SampleRate = extractionResult.SampleRate,
+                EmbeddingDimensions = extractionResult.EmbeddingDimensions,
+                BeatEmbeddings = beatEmbeddings
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (IsRecoverableAiException(ex))
+        {
+            _logger.LogWarning(ex, "Local AI similarity failed; continuing with classic analysis");
+            progressReporter.Report(AnalysisStage.RunningAi, 1.0, "AI similarity unavailable. Using classic analysis.");
+            return null;
+        }
+    }
+
+    private static bool IsRecoverableAiException(Exception exception)
+    {
+        return exception is OnnxInferenceException
+            or IndexOutOfRangeException
+            or ArgumentException
+            or InvalidOperationException;
     }
 
     private static AiAnalysisOptions CreateAiOptions(BranchFindingOptions branchOptions)

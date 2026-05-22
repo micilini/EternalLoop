@@ -13,6 +13,7 @@ public sealed class AiEmbeddingExtractor : IAiEmbeddingExtractor
     private const double PatchExtractionProgress = 0.65;
     private const double EmbeddingExtractionProgress = 0.9;
     private const double CompleteProgress = 1.0;
+    private const int MinimumRealPatchCount = 1;
 
     private readonly AiAudioPreprocessor _audioPreprocessor;
     private readonly AiMelSpectrogramExtractor _melSpectrogramExtractor;
@@ -75,14 +76,19 @@ public sealed class AiEmbeddingExtractor : IAiEmbeddingExtractor
         progressReporter.Report(AnalysisStage.RunningAi, MelSpectrogramProgress, "Creating AI patches");
         var patches = _patchExtractor.ExtractPatches(
             melSpectrogram,
-            AiPreprocessingDefaultValues.MelBands,
-            AiPreprocessingDefaultValues.PatchFrames,
+            _embeddingModel.MelBands,
+            _embeddingModel.PatchFrames,
             AiPreprocessingDefaultValues.PatchHopFrames);
-        var batches = _patchBatcher.CreateBatches(patches, AiPreprocessingDefaultValues.BatchSize);
+        var batches = _patchBatcher.CreateBatches(patches, _embeddingModel.BatchSize);
         cancellationToken.ThrowIfCancellationRequested();
 
+        if (patches.Count == 0 || batches.Count == 0)
+        {
+            return CreateResult(manifest, []);
+        }
+
         progressReporter.Report(AnalysisStage.RunningAi, PatchExtractionProgress, "Extracting AI embeddings");
-        var frames = ExtractFrames(batches, cancellationToken);
+        var frames = ExtractFrames(batches, patches.Count, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
 
         progressReporter.Report(AnalysisStage.RunningAi, EmbeddingExtractionProgress, "AI embeddings ready");
@@ -92,20 +98,23 @@ public sealed class AiEmbeddingExtractor : IAiEmbeddingExtractor
 
     private IReadOnlyList<AiEmbeddingFrame> ExtractFrames(
         IReadOnlyList<AiPatchBatch> batches,
+        int totalPatchCount,
         CancellationToken cancellationToken)
     {
         var frames = new List<AiEmbeddingFrame>();
         var patchIndex = 0;
 
-        foreach (var batch in batches)
+        for (var batchIndex = 0; batchIndex < batches.Count; batchIndex++)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var batch = batches[batchIndex];
+            ValidateBatch(batch, batchIndex, totalPatchCount);
             var realPatches = batch.Patches.Take(batch.RealPatchCount).ToArray();
             var embeddings = _embeddingModel.Predict(realPatches);
 
             if (embeddings.Count != batch.RealPatchCount)
             {
-                throw new InvalidOperationException($"AI model returned '{embeddings.Count}' embeddings for '{batch.RealPatchCount}' real patches.");
+                throw new InvalidOperationException($"AI model returned '{embeddings.Count}' embeddings for '{batch.RealPatchCount}' real patches in batch '{batchIndex}' with batch size '{_embeddingModel.BatchSize}' and total patch count '{totalPatchCount}'.");
             }
 
             for (var embeddingIndex = 0; embeddingIndex < embeddings.Count; embeddingIndex++)
@@ -123,6 +132,21 @@ public sealed class AiEmbeddingExtractor : IAiEmbeddingExtractor
         }
 
         return frames;
+    }
+
+    private void ValidateBatch(AiPatchBatch batch, int batchIndex, int totalPatchCount)
+    {
+        if (batch.Patches is null)
+        {
+            throw new InvalidOperationException($"AI patch batch '{batchIndex}' has no patch collection for total patch count '{totalPatchCount}'.");
+        }
+
+        if (batch.RealPatchCount < MinimumRealPatchCount
+            || batch.RealPatchCount > _embeddingModel.BatchSize
+            || batch.RealPatchCount > batch.Patches.Count)
+        {
+            throw new InvalidOperationException($"AI patch batch '{batchIndex}' has invalid real patch count '{batch.RealPatchCount}' with batch size '{_embeddingModel.BatchSize}', batch patch count '{batch.Patches.Count}' and total patch count '{totalPatchCount}'.");
+        }
     }
 
     private static AiEmbeddingExtractionResult CreateResult(AiModelManifest manifest, IReadOnlyList<AiEmbeddingFrame> frames)
