@@ -26,6 +26,14 @@ public sealed class BranchFindingOptions
 
     public double ContinuationThresholdMargin { get; init; } = TuningDefaultValues.PhraseValidationThresholdMargin;
 
+    public double AnchorLookaheadPassRatio { get; init; } = TuningDefaultValues.AnchorLookaheadPassRatio;
+
+    public double AnchorLookaheadDropTolerance { get; init; } = TuningDefaultValues.AnchorLookaheadDropTolerance;
+
+    public double ContinuationLookaheadPassRatio { get; init; } = TuningDefaultValues.ContinuationLookaheadPassRatio;
+
+    public double ContinuationLookaheadDropTolerance { get; init; } = TuningDefaultValues.ContinuationLookaheadDropTolerance;
+
     public bool UseAiSimilarity { get; init; } = TuningDefaultValues.UseAiSimilarity;
 
     public double AiRejectionThreshold { get; init; } = TuningDefaultValues.AiRejectionThreshold;

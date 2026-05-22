@@ -24,6 +24,18 @@ public sealed class TuningPresetDefinition
 
     public required double FirstPassLinearPlaybackRatio { get; init; }
 
+    public required int ContinuationLookaheadDepth { get; init; }
+
+    public required double ContinuationThresholdMargin { get; init; }
+
+    public required double AnchorLookaheadPassRatio { get; init; }
+
+    public required double AnchorLookaheadDropTolerance { get; init; }
+
+    public required double ContinuationLookaheadPassRatio { get; init; }
+
+    public required double ContinuationLookaheadDropTolerance { get; init; }
+
     public required bool UseDurationSimilarityGate { get; init; }
 
     public required double DurationPenaltyStartRatio { get; init; }

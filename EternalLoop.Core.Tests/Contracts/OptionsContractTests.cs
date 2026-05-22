@@ -45,7 +45,11 @@ public sealed class OptionsContractTests
         options.MaxBranchesPerBeat.Should().Be(3);
         options.LandingOffsetBeats.Should().Be(1);
         options.ContinuationLookaheadDepth.Should().Be(6);
-        options.ContinuationThresholdMargin.Should().Be(0.02);
+        options.ContinuationThresholdMargin.Should().Be(0.00);
+        options.AnchorLookaheadPassRatio.Should().Be(0.65);
+        options.AnchorLookaheadDropTolerance.Should().Be(0.08);
+        options.ContinuationLookaheadPassRatio.Should().Be(0.55);
+        options.ContinuationLookaheadDropTolerance.Should().Be(0.10);
         options.UseAiSimilarity.Should().BeTrue();
         options.AiRejectionThreshold.Should().Be(0.58);
         options.AiPenaltyStartThreshold.Should().Be(0.72);
@@ -62,12 +66,12 @@ public sealed class OptionsContractTests
         options.MetricPositionPenaltyStrength.Should().Be(0.32);
         options.MetricPositionRejectionThreshold.Should().Be(0.20);
         options.TargetBranchSourceRatio.Should().Be(0.16);
-        options.MaxBranchSourceRatio.Should().Be(0.22);
+        options.MaxBranchSourceRatio.Should().Be(0.34);
         options.UseMicrosegmentSimilarity.Should().BeTrue();
         options.MicrosegmentCount.Should().Be(4);
-        options.MicrosegmentPenaltyStartThreshold.Should().Be(0.80);
-        options.MicrosegmentRejectionThreshold.Should().Be(0.64);
-        options.MicrosegmentPenaltyStrength.Should().Be(0.18);
+        options.MicrosegmentPenaltyStartThreshold.Should().Be(0.74);
+        options.MicrosegmentRejectionThreshold.Should().Be(0.54);
+        options.MicrosegmentPenaltyStrength.Should().Be(0.12);
     }
 
     [Fact]

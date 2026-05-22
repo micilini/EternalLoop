@@ -80,7 +80,7 @@ public sealed class TuningPresetCatalogTests
         conservative.TargetBranchSourceRatio.Should().BeLessThan(balanced.TargetBranchSourceRatio);
         balanced.TargetBranchSourceRatio.Should().BeLessThan(wild.TargetBranchSourceRatio);
         conservative.MaxBranchSourceRatio.Should().BeLessThan(balanced.MaxBranchSourceRatio);
-        balanced.MaxBranchSourceRatio.Should().BeLessThan(wild.MaxBranchSourceRatio);
+        balanced.MaxBranchSourceRatio.Should().BeLessThanOrEqualTo(wild.MaxBranchSourceRatio);
 
         conservative.MicrosegmentPenaltyStartThreshold.Should().BeGreaterThan(balanced.MicrosegmentPenaltyStartThreshold);
         balanced.MicrosegmentPenaltyStartThreshold.Should().BeGreaterThan(wild.MicrosegmentPenaltyStartThreshold);
@@ -88,6 +88,43 @@ public sealed class TuningPresetCatalogTests
         balanced.MicrosegmentRejectionThreshold.Should().BeGreaterThan(wild.MicrosegmentRejectionThreshold);
         conservative.MicrosegmentPenaltyStrength.Should().BeGreaterThan(balanced.MicrosegmentPenaltyStrength);
         balanced.MicrosegmentPenaltyStrength.Should().BeGreaterThan(wild.MicrosegmentPenaltyStrength);
+    }
+
+    [Fact]
+    public void Conservative_uses_strict_phrase_validation()
+    {
+        var preset = TuningPresetCatalog.GetById(TuningPresetCatalog.ConservativeId);
+
+        preset.AnchorLookaheadPassRatio.Should().Be(1.00);
+        preset.AnchorLookaheadDropTolerance.Should().Be(0.00);
+        preset.ContinuationLookaheadPassRatio.Should().Be(1.00);
+        preset.ContinuationLookaheadDropTolerance.Should().Be(0.00);
+    }
+
+    [Fact]
+    public void Balanced_uses_soft_phrase_validation()
+    {
+        var preset = TuningPresetCatalog.GetById(TuningPresetCatalog.BalancedId);
+
+        preset.AnchorLookaheadPassRatio.Should().Be(0.65);
+        preset.AnchorLookaheadDropTolerance.Should().Be(0.08);
+        preset.ContinuationLookaheadPassRatio.Should().Be(0.55);
+        preset.ContinuationLookaheadDropTolerance.Should().Be(0.10);
+    }
+
+    [Fact]
+    public void Wild_is_more_permissive_than_balanced()
+    {
+        var balanced = TuningPresetCatalog.GetById(TuningPresetCatalog.BalancedId);
+        var wild = TuningPresetCatalog.GetById(TuningPresetCatalog.WildId);
+
+        wild.SimilarityThreshold.Should().BeLessThan(balanced.SimilarityThreshold);
+        wild.LookaheadDepth.Should().BeLessThan(balanced.LookaheadDepth);
+        wild.ContinuationLookaheadDepth.Should().BeLessThan(balanced.ContinuationLookaheadDepth);
+        wild.MaxBranchesPerBeat.Should().BeGreaterThan(balanced.MaxBranchesPerBeat);
+        wild.MicrosegmentPenaltyStartThreshold.Should().BeLessThan(balanced.MicrosegmentPenaltyStartThreshold);
+        wild.MicrosegmentRejectionThreshold.Should().BeLessThan(balanced.MicrosegmentRejectionThreshold);
+        wild.MicrosegmentPenaltyStrength.Should().BeLessThan(balanced.MicrosegmentPenaltyStrength);
     }
 
     [Fact]
@@ -102,6 +139,8 @@ public sealed class TuningPresetCatalogTests
         preset.JumpProbability.Should().Be(0.14);
         preset.JumpCooldown.Should().Be(16);
         preset.FirstPassLinearPlaybackRatio.Should().Be(0.82);
+        preset.ContinuationLookaheadDepth.Should().Be(6);
+        preset.ContinuationThresholdMargin.Should().Be(0.02);
     }
 
     [Fact]
@@ -141,6 +180,8 @@ public sealed class TuningPresetCatalogTests
         preset.JumpProbability.Should().Be(0.22);
         preset.JumpCooldown.Should().Be(12);
         preset.FirstPassLinearPlaybackRatio.Should().Be(0.78);
+        preset.ContinuationLookaheadDepth.Should().Be(6);
+        preset.ContinuationThresholdMargin.Should().Be(0.00);
     }
 
     [Fact]
@@ -160,12 +201,12 @@ public sealed class TuningPresetCatalogTests
         preset.MetricPositionPenaltyStrength.Should().Be(0.32);
         preset.MetricPositionRejectionThreshold.Should().Be(0.20);
         preset.TargetBranchSourceRatio.Should().Be(0.16);
-        preset.MaxBranchSourceRatio.Should().Be(0.22);
+        preset.MaxBranchSourceRatio.Should().Be(0.34);
         preset.UseMicrosegmentSimilarity.Should().BeTrue();
         preset.MicrosegmentCount.Should().Be(4);
-        preset.MicrosegmentPenaltyStartThreshold.Should().Be(0.80);
-        preset.MicrosegmentRejectionThreshold.Should().Be(0.64);
-        preset.MicrosegmentPenaltyStrength.Should().Be(0.18);
+        preset.MicrosegmentPenaltyStartThreshold.Should().Be(0.74);
+        preset.MicrosegmentRejectionThreshold.Should().Be(0.54);
+        preset.MicrosegmentPenaltyStrength.Should().Be(0.12);
     }
 
     [Fact]
@@ -173,13 +214,15 @@ public sealed class TuningPresetCatalogTests
     {
         var preset = TuningPresetCatalog.GetById(TuningPresetCatalog.WildId);
 
-        preset.SimilarityThreshold.Should().Be(0.78);
-        preset.LookaheadDepth.Should().Be(3);
+        preset.SimilarityThreshold.Should().Be(0.80);
+        preset.LookaheadDepth.Should().Be(2);
         preset.MinJumpDistance.Should().Be(12);
         preset.MaxBranchesPerBeat.Should().Be(5);
         preset.JumpProbability.Should().Be(0.42);
         preset.JumpCooldown.Should().Be(6);
         preset.FirstPassLinearPlaybackRatio.Should().Be(0.70);
+        preset.ContinuationLookaheadDepth.Should().Be(3);
+        preset.ContinuationThresholdMargin.Should().Be(0.02);
     }
 
     [Fact]
@@ -202,8 +245,8 @@ public sealed class TuningPresetCatalogTests
         preset.MaxBranchSourceRatio.Should().Be(0.34);
         preset.UseMicrosegmentSimilarity.Should().BeTrue();
         preset.MicrosegmentCount.Should().Be(3);
-        preset.MicrosegmentPenaltyStartThreshold.Should().Be(0.70);
-        preset.MicrosegmentRejectionThreshold.Should().Be(0.50);
-        preset.MicrosegmentPenaltyStrength.Should().Be(0.10);
+        preset.MicrosegmentPenaltyStartThreshold.Should().Be(0.65);
+        preset.MicrosegmentRejectionThreshold.Should().Be(0.42);
+        preset.MicrosegmentPenaltyStrength.Should().Be(0.075);
     }
 }

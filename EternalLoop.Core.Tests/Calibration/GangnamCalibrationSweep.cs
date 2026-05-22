@@ -7,7 +7,7 @@ public sealed class GangnamCalibrationSweep
 {
     private const double SourceLowerRatio = 0.10;
     private const double TooDenseRatio = 1.80;
-    private const int MaxSweepCandidates = 120;
+    private const int MaxSweepCandidates = 240;
 
     private readonly GangnamCalibrationRunner _runner;
 
@@ -52,15 +52,15 @@ public sealed class GangnamCalibrationSweep
         var current = GangnamCalibrationRunner.CreatePresetOptions(presetId);
         var isWild = string.Equals(presetId, TuningPresetCatalog.WildId, StringComparison.Ordinal);
         var thresholds = isWild
-            ? new[] { current.SimilarityThreshold, current.SimilarityThreshold - 0.02, current.SimilarityThreshold - 0.04 }
-            : [current.SimilarityThreshold, current.SimilarityThreshold - 0.02, current.SimilarityThreshold - 0.04, current.SimilarityThreshold - 0.06];
+            ? new[] { 0.80, 0.78, 0.76, 0.74 }
+            : [0.86, 0.84, 0.82, 0.80, 0.78, 0.76];
         var lookaheads = isWild
-            ? new[] { current.LookaheadDepth, Math.Max(1, current.LookaheadDepth - 1) }
-            : [current.LookaheadDepth, Math.Max(2, current.LookaheadDepth - 1)];
+            ? new[] { 3, 2, 1 }
+            : [4, 3, 2];
         var continuations = isWild
-            ? new[] { current.ContinuationLookaheadDepth, Math.Max(2, current.ContinuationLookaheadDepth - 2) }
-            : [current.ContinuationLookaheadDepth, Math.Max(3, current.ContinuationLookaheadDepth - 2)];
-        var margins = new[] { current.ContinuationThresholdMargin, 0.0 };
+            ? new[] { 4, 3, 2 }
+            : [6, 4, 3];
+        var margins = new[] { 0.02, 0.0 };
         var microProfiles = new[]
         {
             new MicroProfile(
@@ -78,7 +78,17 @@ public sealed class GangnamCalibrationSweep
         };
         var sourceRatios = isWild
             ? new[] { current.MaxBranchSourceRatio, Math.Min(0.50, current.MaxBranchSourceRatio + 0.08), Math.Min(0.60, current.MaxBranchSourceRatio + 0.16) }
-            : [current.MaxBranchSourceRatio, Math.Min(0.34, current.MaxBranchSourceRatio + 0.06), Math.Min(0.42, current.MaxBranchSourceRatio + 0.12)];
+            : [current.MaxBranchSourceRatio, 0.34, 0.42];
+        var softProfiles = new[]
+        {
+            new SoftPhraseProfile(
+                current.AnchorLookaheadPassRatio,
+                current.AnchorLookaheadDropTolerance,
+                current.ContinuationLookaheadPassRatio,
+                current.ContinuationLookaheadDropTolerance),
+            new SoftPhraseProfile(0.65, 0.08, 0.55, 0.10),
+            new SoftPhraseProfile(0.50, 0.12, 0.45, 0.14)
+        };
 
         var candidateCount = 0;
         foreach (var threshold in thresholds)
@@ -87,8 +97,9 @@ public sealed class GangnamCalibrationSweep
         foreach (var margin in margins)
         foreach (var microProfile in microProfiles)
         foreach (var sourceRatio in sourceRatios)
+        foreach (var softProfile in softProfiles)
         {
-            yield return Copy(current, threshold, lookahead, continuation, margin, microProfile.Start, microProfile.Rejection, microProfile.Strength, sourceRatio);
+            yield return Copy(current, threshold, lookahead, continuation, margin, microProfile.Start, microProfile.Rejection, microProfile.Strength, sourceRatio, softProfile);
             candidateCount++;
             if (candidateCount >= MaxSweepCandidates)
             {
@@ -122,7 +133,8 @@ public sealed class GangnamCalibrationSweep
         double microStart,
         double microReject,
         double microStrength,
-        double sourceRatio)
+        double sourceRatio,
+        SoftPhraseProfile softProfile)
     {
         return new BranchFindingOptions
         {
@@ -133,6 +145,10 @@ public sealed class GangnamCalibrationSweep
             LandingOffsetBeats = current.LandingOffsetBeats,
             ContinuationLookaheadDepth = continuation,
             ContinuationThresholdMargin = Math.Clamp(margin, 0.0, 1.0),
+            AnchorLookaheadPassRatio = Math.Clamp(softProfile.AnchorPassRatio, 0.0, 1.0),
+            AnchorLookaheadDropTolerance = Math.Clamp(softProfile.AnchorDropTolerance, 0.0, 1.0),
+            ContinuationLookaheadPassRatio = Math.Clamp(softProfile.ContinuationPassRatio, 0.0, 1.0),
+            ContinuationLookaheadDropTolerance = Math.Clamp(softProfile.ContinuationDropTolerance, 0.0, 1.0),
             TimbreWeight = current.TimbreWeight,
             PitchWeight = current.PitchWeight,
             LoudnessWeight = current.LoudnessWeight,
@@ -170,3 +186,9 @@ public sealed record GangnamCalibrationCandidate(
     double CandidateScore);
 
 file sealed record MicroProfile(double Start, double Rejection, double Strength);
+
+public sealed record SoftPhraseProfile(
+    double AnchorPassRatio,
+    double AnchorDropTolerance,
+    double ContinuationPassRatio,
+    double ContinuationDropTolerance);

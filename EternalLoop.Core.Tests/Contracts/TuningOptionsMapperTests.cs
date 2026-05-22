@@ -31,7 +31,11 @@ public sealed class TuningOptionsMapperTests
         options.LoudnessWeight.Should().Be(0.20);
         options.BarPositionWeight.Should().Be(0.18);
         options.ContinuationLookaheadDepth.Should().Be(6);
-        options.ContinuationThresholdMargin.Should().Be(0.02);
+        options.ContinuationThresholdMargin.Should().Be(0.00);
+        options.AnchorLookaheadPassRatio.Should().Be(0.65);
+        options.AnchorLookaheadDropTolerance.Should().Be(0.08);
+        options.ContinuationLookaheadPassRatio.Should().Be(0.55);
+        options.ContinuationLookaheadDropTolerance.Should().Be(0.10);
         options.UseAiSimilarity.Should().BeFalse();
         options.AiRejectionThreshold.Should().Be(0.58);
         options.AiPenaltyStartThreshold.Should().Be(0.72);
@@ -48,12 +52,12 @@ public sealed class TuningOptionsMapperTests
         options.MetricPositionPenaltyStrength.Should().Be(0.32);
         options.MetricPositionRejectionThreshold.Should().Be(0.20);
         options.TargetBranchSourceRatio.Should().Be(0.16);
-        options.MaxBranchSourceRatio.Should().Be(0.22);
+        options.MaxBranchSourceRatio.Should().Be(0.34);
         options.UseMicrosegmentSimilarity.Should().BeTrue();
         options.MicrosegmentCount.Should().Be(4);
-        options.MicrosegmentPenaltyStartThreshold.Should().Be(0.80);
-        options.MicrosegmentRejectionThreshold.Should().Be(0.64);
-        options.MicrosegmentPenaltyStrength.Should().Be(0.18);
+        options.MicrosegmentPenaltyStartThreshold.Should().Be(0.74);
+        options.MicrosegmentRejectionThreshold.Should().Be(0.54);
+        options.MicrosegmentPenaltyStrength.Should().Be(0.12);
     }
 
     [Fact]
@@ -69,7 +73,7 @@ public sealed class TuningOptionsMapperTests
         options.MetricPositionMode.Should().Be(MetricPositionMode.StrongPenalty);
         options.DurationPenaltyStartRatio.Should().Be(0.90);
         options.TargetBranchSourceRatio.Should().Be(0.16);
-        options.MicrosegmentPenaltyStrength.Should().Be(0.18);
+        options.MicrosegmentPenaltyStrength.Should().Be(0.12);
     }
 
     [Fact]
@@ -101,7 +105,7 @@ public sealed class TuningOptionsMapperTests
         options.MetricPositionMode.Should().Be(MetricPositionMode.SoftPenalty);
         options.DurationPenaltyStartRatio.Should().Be(0.84);
         options.TargetBranchSourceRatio.Should().Be(0.25);
-        options.MicrosegmentPenaltyStrength.Should().Be(0.10);
+        options.MicrosegmentPenaltyStrength.Should().Be(0.075);
     }
 
     [Fact]
@@ -117,7 +121,50 @@ public sealed class TuningOptionsMapperTests
         options.MetricPositionMode.Should().Be(MetricPositionMode.StrongPenalty);
         options.DurationPenaltyStartRatio.Should().Be(0.90);
         options.TargetBranchSourceRatio.Should().Be(0.16);
-        options.MicrosegmentPenaltyStrength.Should().Be(0.18);
+        options.MicrosegmentPenaltyStrength.Should().Be(0.12);
+
+    }
+
+    [Fact]
+    public void ToBranchFindingOptions_Should_Map_AnchorLookaheadValidationOptions()
+    {
+        var options = TuningOptionsMapper.ToBranchFindingOptions(new UserSettings
+        {
+            Preset = TuningPresetCatalog.WildId
+        });
+
+        options.AnchorLookaheadPassRatio.Should().Be(0.65);
+        options.AnchorLookaheadDropTolerance.Should().Be(0.08);
+    }
+
+    [Fact]
+    public void ToBranchFindingOptions_Should_Map_ContinuationLookaheadValidationOptions()
+    {
+        var options = TuningOptionsMapper.ToBranchFindingOptions(new UserSettings
+        {
+            Preset = TuningPresetCatalog.WildId
+        });
+
+        options.ContinuationLookaheadPassRatio.Should().Be(0.55);
+        options.ContinuationLookaheadDropTolerance.Should().Be(0.10);
+    }
+
+    [Fact]
+    public void ToBranchFindingOptions_Should_Map_PresetContinuationOptions()
+    {
+        var balanced = TuningOptionsMapper.ToBranchFindingOptions(new UserSettings
+        {
+            Preset = TuningPresetCatalog.BalancedId
+        });
+        var wild = TuningOptionsMapper.ToBranchFindingOptions(new UserSettings
+        {
+            Preset = TuningPresetCatalog.WildId
+        });
+
+        balanced.ContinuationLookaheadDepth.Should().Be(6);
+        balanced.ContinuationThresholdMargin.Should().Be(0.00);
+        wild.ContinuationLookaheadDepth.Should().Be(3);
+        wild.ContinuationThresholdMargin.Should().Be(0.02);
     }
 
     [Fact]

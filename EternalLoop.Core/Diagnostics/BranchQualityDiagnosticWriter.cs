@@ -50,7 +50,7 @@ public static class BranchQualityDiagnosticWriter
                 .ThenBy(edge => edge.ToBeat)
                 .ToArray();
 
-            File.WriteAllText(csvPath, BuildCsv(analysis, edges), Encoding.UTF8);
+            File.WriteAllText(csvPath, BuildCsv(analysis, edges, options), Encoding.UTF8);
             File.WriteAllText(summaryPath, BuildSummary(analysis, edges, options), Encoding.UTF8);
 
             return new BranchQualityDiagnosticResult(csvPath, summaryPath);
@@ -71,23 +71,33 @@ public static class BranchQualityDiagnosticWriter
             BranchQualityFolderName);
     }
 
-    private static string BuildCsv(TrackAnalysis analysis, IReadOnlyList<JukeboxEdge> edges)
+    private static string BuildCsv(
+        TrackAnalysis analysis,
+        IReadOnlyList<JukeboxEdge> edges,
+        BranchFindingOptions options)
     {
         var beats = analysis.Beats.ToDictionary(beat => beat.Index);
         var timeSignature = Math.Max(1, analysis.Metadata.TimeSignature);
         var builder = new StringBuilder();
-        builder.AppendLine("fromBeat,toBeat,similarity,fromStart,toStart,fromDuration,toDuration,fromConfidence,toConfidence,distanceBeats,direction,fromMetricSlot,toMetricSlot");
+        builder.AppendLine("fromBeat,toBeat,anchorBeat,landingBeat,similarity,fromStart,toStart,fromDuration,toDuration,fromConfidence,toConfidence,distanceBeats,direction,fromMetricSlot,anchorMetricSlot,landingMetricSlot,sourceAnchorMetricMatched,sourceLandingMetricMatched");
 
         foreach (var edge in edges)
         {
             beats.TryGetValue(edge.FromBeat, out var fromBeat);
             beats.TryGetValue(edge.ToBeat, out var toBeat);
+            var landingBeat = edge.ToBeat;
+            var anchorBeat = GetAnchorBeat(landingBeat, options, analysis.Beats.Count);
             var distance = edge.ToBeat - edge.FromBeat;
             var direction = distance >= 0 ? "forward" : "backward";
+            var fromMetricSlot = GetMetricSlot(edge.FromBeat, timeSignature);
+            var anchorMetricSlot = GetMetricSlot(anchorBeat, timeSignature);
+            var landingMetricSlot = GetMetricSlot(landingBeat, timeSignature);
 
             builder
                 .Append(edge.FromBeat.ToString(CultureInfo.InvariantCulture)).Append(',')
                 .Append(edge.ToBeat.ToString(CultureInfo.InvariantCulture)).Append(',')
+                .Append(anchorBeat.ToString(CultureInfo.InvariantCulture)).Append(',')
+                .Append(landingBeat.ToString(CultureInfo.InvariantCulture)).Append(',')
                 .Append(Format(edge.Similarity)).Append(',')
                 .Append(Format(fromBeat?.Start ?? 0.0)).Append(',')
                 .Append(Format(toBeat?.Start ?? 0.0)).Append(',')
@@ -97,8 +107,11 @@ public static class BranchQualityDiagnosticWriter
                 .Append(Format(toBeat?.Confidence ?? 0.0)).Append(',')
                 .Append(Math.Abs(distance).ToString(CultureInfo.InvariantCulture)).Append(',')
                 .Append(direction).Append(',')
-                .Append(GetMetricSlot(edge.FromBeat, timeSignature).ToString(CultureInfo.InvariantCulture)).Append(',')
-                .Append(GetMetricSlot(edge.ToBeat, timeSignature).ToString(CultureInfo.InvariantCulture))
+                .Append(fromMetricSlot.ToString(CultureInfo.InvariantCulture)).Append(',')
+                .Append(anchorMetricSlot.ToString(CultureInfo.InvariantCulture)).Append(',')
+                .Append(landingMetricSlot.ToString(CultureInfo.InvariantCulture)).Append(',')
+                .Append((fromMetricSlot == anchorMetricSlot).ToString(CultureInfo.InvariantCulture)).Append(',')
+                .Append((fromMetricSlot == landingMetricSlot).ToString(CultureInfo.InvariantCulture))
                 .AppendLine();
         }
 
@@ -118,11 +131,17 @@ public static class BranchQualityDiagnosticWriter
         var longBackwardEdgeCount = edges.Count(edge =>
             edge.ToBeat < edge.FromBeat &&
             Math.Abs(edge.ToBeat - edge.FromBeat) >= longBackwardDistance);
-        var metricMatchedEdgeCount = edges.Count(edge =>
+        var landingMetricMatchedEdgeCount = edges.Count(edge =>
             GetMetricSlot(edge.FromBeat, timeSignature) == GetMetricSlot(edge.ToBeat, timeSignature));
-        var metricMatchedRatio = edges.Count == 0
+        var anchorMetricMatchedEdgeCount = edges.Count(edge =>
+            GetMetricSlot(edge.FromBeat, timeSignature) ==
+            GetMetricSlot(GetAnchorBeat(edge.ToBeat, options, analysis.Beats.Count), timeSignature));
+        var landingMetricMatchedRatio = edges.Count == 0
             ? 0.0
-            : metricMatchedEdgeCount / (double)edges.Count;
+            : landingMetricMatchedEdgeCount / (double)edges.Count;
+        var anchorMetricMatchedRatio = edges.Count == 0
+            ? 0.0
+            : anchorMetricMatchedEdgeCount / (double)edges.Count;
         var edgeToBeatRatio = analysis.Beats.Count == 0
             ? 0.0
             : edges.Count / (double)analysis.Beats.Count;
@@ -144,8 +163,12 @@ public static class BranchQualityDiagnosticWriter
         builder.AppendLine($"BackwardEdgeCount: {backwardEdgeCount.ToString(CultureInfo.InvariantCulture)}");
         builder.AppendLine($"ForwardEdgeCount: {forwardEdgeCount.ToString(CultureInfo.InvariantCulture)}");
         builder.AppendLine($"LongBackwardEdgeCount: {longBackwardEdgeCount.ToString(CultureInfo.InvariantCulture)}");
-        builder.AppendLine($"MetricMatchedEdgeCount: {metricMatchedEdgeCount.ToString(CultureInfo.InvariantCulture)}");
-        builder.AppendLine($"MetricMatchedRatio: {Format(metricMatchedRatio)}");
+        builder.AppendLine($"MetricMatchedEdgeCount: {landingMetricMatchedEdgeCount.ToString(CultureInfo.InvariantCulture)}");
+        builder.AppendLine($"MetricMatchedRatio: {Format(landingMetricMatchedRatio)}");
+        builder.AppendLine($"AnchorMetricMatchedEdgeCount: {anchorMetricMatchedEdgeCount.ToString(CultureInfo.InvariantCulture)}");
+        builder.AppendLine($"AnchorMetricMatchedRatio: {Format(anchorMetricMatchedRatio)}");
+        builder.AppendLine($"LandingMetricMatchedEdgeCount: {landingMetricMatchedEdgeCount.ToString(CultureInfo.InvariantCulture)}");
+        builder.AppendLine($"LandingMetricMatchedRatio: {Format(landingMetricMatchedRatio)}");
         builder.AppendLine($"EdgeToBeatRatio: {Format(edgeToBeatRatio)}");
         builder.AppendLine($"SourceToBeatRatio: {Format(finalSourceRatio)}");
         builder.AppendLine($"PresetLikeThreshold: {Format(options.SimilarityThreshold)}");
@@ -168,6 +191,17 @@ public static class BranchQualityDiagnosticWriter
     private static int GetMetricSlot(int beatIndex, int timeSignature)
     {
         return Math.Abs(beatIndex % timeSignature);
+    }
+
+    private static int GetAnchorBeat(int landingBeat, BranchFindingOptions options, int beatCount)
+    {
+        if (beatCount <= 0)
+        {
+            return 0;
+        }
+
+        var offset = Math.Clamp(options.LandingOffsetBeats, 0, Math.Max(0, beatCount - 1));
+        return Math.Clamp(landingBeat - offset, 0, beatCount - 1);
     }
 
     private static string SanitizeHash(string hash)

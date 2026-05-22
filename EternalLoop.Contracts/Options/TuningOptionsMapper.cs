@@ -36,8 +36,30 @@ public static class TuningOptionsMapper
             PitchWeight = TuningDefaultValues.PitchWeight,
             LoudnessWeight = TuningDefaultValues.LoudnessWeight,
             BarPositionWeight = TuningDefaultValues.BarPositionWeight,
-            ContinuationLookaheadDepth = TuningDefaultValues.PhraseValidationLookaheadDepth,
-            ContinuationThresholdMargin = TuningDefaultValues.PhraseValidationThresholdMargin,
+            ContinuationLookaheadDepth = Clamp(
+                preset.ContinuationLookaheadDepth,
+                TuningDefaultValues.MinLookaheadDepth,
+                TuningDefaultValues.MaxLookaheadDepth),
+            ContinuationThresholdMargin = Clamp(
+                preset.ContinuationThresholdMargin,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            AnchorLookaheadPassRatio = Clamp(
+                preset.AnchorLookaheadPassRatio,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            AnchorLookaheadDropTolerance = Clamp(
+                preset.AnchorLookaheadDropTolerance,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            ContinuationLookaheadPassRatio = Clamp(
+                preset.ContinuationLookaheadPassRatio,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            ContinuationLookaheadDropTolerance = Clamp(
+                preset.ContinuationLookaheadDropTolerance,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
             UseAiSimilarity = settings.UseAiSimilarity,
             AiRejectionThreshold = TuningDefaultValues.AiRejectionThreshold,
             AiPenaltyStartThreshold = TuningDefaultValues.AiPenaltyStartThreshold,

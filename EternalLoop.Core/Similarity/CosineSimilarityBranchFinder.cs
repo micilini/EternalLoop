@@ -55,7 +55,7 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
         var threshold = Math.Clamp(options.SimilarityThreshold, 0.0, 1.0);
         threshold = ApplyAiThresholdFloor(threshold, options, isAiActiveForThisAnalysis);
         var continuationLookahead = Math.Clamp(
-            Math.Max(options.ContinuationLookaheadDepth, lookahead + landingOffset + 2),
+            Math.Max(options.ContinuationLookaheadDepth, lookahead),
             lookahead,
             MaximumContinuationLookaheadDepth);
         var continuationThreshold = Math.Clamp(
@@ -72,7 +72,14 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
             maxBranchesPerBeat,
             landingOffset,
             continuationLookahead,
-            continuationThreshold);
+            new LookaheadValidationOptions(
+                threshold,
+                options.AnchorLookaheadPassRatio,
+                options.AnchorLookaheadDropTolerance),
+            new LookaheadValidationOptions(
+                continuationThreshold,
+                options.ContinuationLookaheadPassRatio,
+                options.ContinuationLookaheadDropTolerance));
         if ((edges.Count == 0 && HasCandidates(beats.Count, lookahead, minJumpDistance)) ||
             edges.Count > targetMaxEdges)
         {
@@ -96,7 +103,14 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
                 maxBranchesPerBeat,
                 landingOffset,
                 continuationLookahead,
-                continuationThreshold);
+                new LookaheadValidationOptions(
+                    threshold,
+                    options.AnchorLookaheadPassRatio,
+                    options.AnchorLookaheadDropTolerance),
+                new LookaheadValidationOptions(
+                    continuationThreshold,
+                    options.ContinuationLookaheadPassRatio,
+                    options.ContinuationLookaheadDropTolerance));
         }
 
         var densityLimitedEdges = BranchSourceDensityLimiter.Limit(
@@ -149,7 +163,8 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
         int maxBranchesPerBeat,
         int landingOffset,
         int continuationLookahead,
-        double continuationThreshold)
+        LookaheadValidationOptions anchorValidation,
+        LookaheadValidationOptions continuationValidation)
     {
         var n = matrix.GetLength(0);
         var edges = new List<JukeboxEdge>();
@@ -188,7 +203,7 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
                     continue;
                 }
 
-                if (!TryGetLookaheadScore(matrix, i, anchorBeat, lookahead, threshold, out var anchorScore))
+                if (!TryGetLookaheadScore(matrix, i, anchorBeat, lookahead, anchorValidation, out var anchorScore))
                 {
                     continue;
                 }
@@ -198,7 +213,7 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
                         sourceContinuationStart,
                         landingBeat,
                         continuationLookahead,
-                        continuationThreshold,
+                        continuationValidation,
                         out var continuationScore))
                 {
                     continue;
@@ -233,25 +248,49 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
         int fromBeat,
         int toBeat,
         int lookahead,
-        double threshold,
+        LookaheadValidationOptions validation,
         out double score)
     {
+        var count = lookahead + 1;
+        var threshold = Math.Clamp(validation.Threshold, 0.0, 1.0);
+        var passRatio = Math.Clamp(validation.PassRatio, 0.0, 1.0);
+        var dropTolerance = Math.Clamp(validation.DropTolerance, 0.0, 1.0);
+        var floor = Math.Clamp(threshold - dropTolerance, 0.0, 1.0);
+        var requiredAverage = Math.Clamp(threshold - (dropTolerance * 0.50), 0.0, 1.0);
         double sum = 0.0;
+        double minimum = 1.0;
+        var passed = 0;
 
         for (var k = 0; k <= lookahead; k++)
         {
             var value = matrix[fromBeat + k, toBeat + k];
 
-            if (!double.IsFinite(value) || value < threshold)
+            if (!double.IsFinite(value))
             {
                 score = 0.0;
                 return false;
             }
 
             sum += value;
+            minimum = Math.Min(minimum, value);
+            if (value >= threshold)
+            {
+                passed++;
+            }
         }
 
-        score = sum / (lookahead + 1);
+        var average = sum / count;
+        var actualPassRatio = passed / (double)count;
+
+        if (minimum < floor ||
+            average < requiredAverage ||
+            actualPassRatio < passRatio)
+        {
+            score = 0.0;
+            return false;
+        }
+
+        score = Math.Clamp((average * 0.85) + (minimum * 0.15), 0.0, 1.0);
         return true;
     }
 
@@ -309,4 +348,9 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
         var sourceLimit = (int)Math.Ceiling(beatCount * ratio);
         return Math.Clamp(sourceLimit, 1, beatCount);
     }
+
+    private readonly record struct LookaheadValidationOptions(
+        double Threshold,
+        double PassRatio,
+        double DropTolerance);
 }

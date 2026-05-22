@@ -10,6 +10,7 @@ public sealed class GangnamReferenceComparison
     private const double BeatToleranceRatio = 0.10;
     private const double EdgeCountLowerRatio = 0.60;
     private const double EdgeCountUpperRatio = 1.60;
+    private const double WildEdgeCountUpperRatio = 1.80;
     private const double SourceCountLowerRatio = 0.10;
     private const double SourceCountUpperRatio = 0.45;
     public const string ReferenceMismatchMessage = "The local audio and the Infinite Jukebox SVG do not appear to represent the same track version. Do not tune branch thresholds against this reference until the audio and SVG are aligned.";
@@ -71,6 +72,11 @@ public sealed class GangnamReferenceComparison
             if (balanced.SourceCount < lowerSourceBound || balanced.SourceCount > upperSourceBound)
             {
                 failures.Add($"Balanced source count is outside the accepted source band [{Format(lowerSourceBound)}, {Format(upperSourceBound)}].");
+            }
+
+            if (wild.EdgeCount > svg.BranchPathCount * WildEdgeCountUpperRatio)
+            {
+                failures.Add($"Wild edge count is above the accepted upper band {Format(svg.BranchPathCount * WildEdgeCountUpperRatio)}.");
             }
         }
 

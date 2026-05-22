@@ -59,8 +59,8 @@ public sealed class BranchQualityDiagnosticWriterTests
             var csv = File.ReadAllText(result.CsvPath);
             var summary = File.ReadAllText(result.SummaryPath);
 
-            csv.Should().Contain("fromBeat,toBeat,similarity,fromStart,toStart,fromDuration,toDuration,fromConfidence,toConfidence,distanceBeats,direction,fromMetricSlot,toMetricSlot");
-            csv.Should().Contain("0,8,0.95,0,4,0.5,0.5,1,1,8,forward,0,0");
+            csv.Should().Contain("fromBeat,toBeat,anchorBeat,landingBeat,similarity,fromStart,toStart,fromDuration,toDuration,fromConfidence,toConfidence,distanceBeats,direction,fromMetricSlot,anchorMetricSlot,landingMetricSlot,sourceAnchorMetricMatched,sourceLandingMetricMatched");
+            csv.Should().Contain("0,8,7,8,0.95,0,4,0.5,0.5,1,1,8,forward,0,3,0,False,True");
             summary.Should().Contain("EternalLoop Branch Quality Diagnostics");
             summary.Should().Contain("Version: v1.2.0");
             summary.Should().Contain("FinalEdgeCount: 2");
@@ -71,6 +71,10 @@ public sealed class BranchQualityDiagnosticWriterTests
             summary.Should().Contain("LongBackwardEdgeCount: 0");
             summary.Should().Contain("MetricMatchedEdgeCount: 2");
             summary.Should().Contain("MetricMatchedRatio: 1");
+            summary.Should().Contain("AnchorMetricMatchedEdgeCount: 0");
+            summary.Should().Contain("AnchorMetricMatchedRatio: 0");
+            summary.Should().Contain("LandingMetricMatchedEdgeCount: 2");
+            summary.Should().Contain("LandingMetricMatchedRatio: 1");
             summary.Should().Contain("EdgeToBeatRatio: 0.125");
             summary.Should().Contain("SourceToBeatRatio: 0.0625");
             summary.Should().Contain("PresetLikeThreshold: 0.86");
@@ -103,6 +107,64 @@ public sealed class BranchQualityDiagnosticWriterTests
         finally
         {
             Environment.SetEnvironmentVariable(ExportVariable, previous);
+        }
+    }
+
+    [Fact]
+    public void WriteIfEnabled_Should_WriteAnchorAndLandingMetricSlots()
+    {
+        var previous = Environment.GetEnvironmentVariable(ExportVariable);
+        var directory = CreateTempDirectory();
+
+        try
+        {
+            Environment.SetEnvironmentVariable(ExportVariable, "1");
+
+            var result = BranchQualityDiagnosticWriter.WriteIfEnabled(
+                CreateAnalysis(),
+                CreateGraph(),
+                CreateOptions(),
+                directory);
+
+            var csv = File.ReadAllText(result!.CsvPath);
+
+            csv.Should().Contain("anchorBeat");
+            csv.Should().Contain("landingBeat");
+            csv.Should().Contain("anchorMetricSlot");
+            csv.Should().Contain("landingMetricSlot");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(ExportVariable, previous);
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void WriteIfEnabled_Should_UseAnchorMetricMatch_WhenLandingOffsetIsNonZero()
+    {
+        var previous = Environment.GetEnvironmentVariable(ExportVariable);
+        var directory = CreateTempDirectory();
+
+        try
+        {
+            Environment.SetEnvironmentVariable(ExportVariable, "1");
+
+            var result = BranchQualityDiagnosticWriter.WriteIfEnabled(
+                CreateAnalysis(),
+                CreateGraph(),
+                CreateOptions(),
+                directory);
+
+            var summary = File.ReadAllText(result!.SummaryPath);
+
+            summary.Should().Contain("AnchorMetricMatchedEdgeCount: 0");
+            summary.Should().Contain("LandingMetricMatchedEdgeCount: 2");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(ExportVariable, previous);
+            Directory.Delete(directory, recursive: true);
         }
     }
 

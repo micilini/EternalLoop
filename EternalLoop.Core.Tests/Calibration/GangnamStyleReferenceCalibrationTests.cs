@@ -78,6 +78,28 @@ public sealed class GangnamStyleReferenceCalibrationTests
                 svg,
                 run.Balanced,
                 Path.Combine(outputDirectory, "sweep-wild"));
+
+            var bestBalanced = balancedCandidates.FirstOrDefault();
+            var bestWild = wildCandidates.FirstOrDefault();
+            if (bestBalanced is not null && bestWild is not null)
+            {
+                var exportedBalanced = runner.RunPreset(
+                    run.Analysis,
+                    "best-balanced",
+                    outputDirectory,
+                    bestBalanced.Options);
+                var exportedWild = runner.RunPreset(
+                    run.Analysis,
+                    "best-wild",
+                    outputDirectory,
+                    bestWild.Options);
+                GangnamBranchComparisonSvgWriter.Write(
+                    outputDirectory,
+                    svg,
+                    exportedBalanced,
+                    exportedWild,
+                    pass: false);
+            }
         }
 
         GangnamReferenceComparison.WriteReports(result, outputDirectory, balancedCandidates, wildCandidates);
@@ -107,6 +129,12 @@ public sealed class GangnamStyleReferenceCalibrationTests
 
         if (result.Pass)
         {
+            GangnamBranchComparisonSvgWriter.Write(
+                outputDirectory,
+                svg,
+                run.Balanced,
+                run.Wild,
+                pass: true);
             return;
         }
 
