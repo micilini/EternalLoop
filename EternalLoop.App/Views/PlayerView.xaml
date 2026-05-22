@@ -158,6 +158,30 @@
                         <TextBlock Text="{Binding LoopModeText, StringFormat=Mode: {0}}"
                                    Style="{StaticResource EL.Text.Caption}"
                                    Margin="0 0 0 12" />
+                        <Border CornerRadius="14"
+                                Padding="12"
+                                Margin="0 0 0 10"
+                                Background="#10FFFFFF">
+                            <StackPanel>
+                                <TextBlock Text="AI similarity"
+                                           Style="{StaticResource EL.Text.Caption}" />
+                                <TextBlock Text="{Binding AiAnalysisBadgeText}"
+                                           Foreground="White"
+                                           FontWeight="SemiBold"
+                                           FontSize="14"
+                                           Margin="0 3 0 0" />
+                                <TextBlock Text="{Binding AiAnalysisDetailText}"
+                                           Style="{StaticResource EL.Text.Caption}"
+                                           TextWrapping="Wrap"
+                                           Margin="0 4 0 0" />
+                                <TextBlock Text="{Binding AiAnalysisWarningText}"
+                                           Style="{StaticResource EL.Text.Caption}"
+                                           Foreground="{StaticResource EL.Brush.Warning}"
+                                           TextWrapping="Wrap"
+                                           Margin="0 6 0 0"
+                                           Visibility="{Binding IsAiAnalysisWarningVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            </StackPanel>
+                        </Border>
                         <TextBlock Text="{Binding AnalyzeAgainStatusText}"
                                    Style="{StaticResource EL.Text.Caption}"
                                    Foreground="{StaticResource EL.Brush.Warning}"

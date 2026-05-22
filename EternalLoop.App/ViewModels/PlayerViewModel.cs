@@ -49,6 +49,10 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string cacheBadgeText = "Fresh";
     [ObservableProperty] private string cacheDetailText = "Analysis saved locally.";
     [ObservableProperty] private string analyzeAgainStatusText = string.Empty;
+    [ObservableProperty] private string aiAnalysisBadgeText = "Classic DSP";
+    [ObservableProperty] private string aiAnalysisDetailText = "AI status unavailable.";
+    [ObservableProperty] private string? aiAnalysisWarningText;
+    [ObservableProperty] private bool isAiAnalysisWarningVisible;
     [ObservableProperty] private ObservableCollection<LoopBranchPreview> branchPreviews = new();
 
     public PlayerViewModel(
@@ -190,6 +194,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         TrackDurationText = FormatTime(TimeSpan.FromSeconds(TrackDurationSeconds));
         LoopModeText = $"{_sessionState.Settings.Preset} loop";
         UpdateCacheInfo(result);
+        UpdateAiAnalysisInfo(result);
         TempoText = $"{result.Analysis.Metadata.Tempo:0.0}";
         var beatCount = result.Analysis.Beats.Count;
         var branchCount = result.Graph.JumpEdges.Sum(pair => pair.Value.Count);
@@ -293,6 +298,45 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
         AnalysisSourceText = "Fresh analysis";
         CacheBadgeText = "Saved now";
         CacheDetailText = $"Analysis saved to cache on {formatted}";
+    }
+
+    private void UpdateAiAnalysisInfo(JukeboxAnalysisResult result)
+    {
+        var run = result.AiRun;
+
+        switch (run.Status)
+        {
+            case AiAnalysisRunStatus.Completed:
+                AiAnalysisBadgeText = "AI used";
+                AiAnalysisDetailText = "Local AI similarity was used for this analysis.";
+                AiAnalysisWarningText = null;
+                IsAiAnalysisWarningVisible = false;
+                break;
+
+            case AiAnalysisRunStatus.LoadedFromCache:
+                AiAnalysisBadgeText = "AI cache";
+                AiAnalysisDetailText = "Local AI similarity was loaded from the saved analysis.";
+                AiAnalysisWarningText = null;
+                IsAiAnalysisWarningVisible = false;
+                break;
+
+            case AiAnalysisRunStatus.FailedFallback:
+                AiAnalysisBadgeText = "Classic fallback";
+                AiAnalysisDetailText = "Local AI similarity failed for this track, so EternalLoop used classic analysis.";
+                AiAnalysisWarningText = string.IsNullOrWhiteSpace(run.FailureReason)
+                    ? "AI failed for this track. Playback is using classic analysis."
+                    : $"AI failed for this track: {run.FailureReason}";
+                IsAiAnalysisWarningVisible = true;
+                break;
+
+            case AiAnalysisRunStatus.Disabled:
+            default:
+                AiAnalysisBadgeText = "AI off";
+                AiAnalysisDetailText = "Local AI similarity is disabled. This track is using classic analysis.";
+                AiAnalysisWarningText = null;
+                IsAiAnalysisWarningVisible = false;
+                break;
+        }
     }
 
     public void Dispose()

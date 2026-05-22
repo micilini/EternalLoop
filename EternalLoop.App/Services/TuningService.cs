@@ -52,7 +52,8 @@ public sealed class TuningService : ITuningService
             Audio = current.Audio,
             Analysis = current.Analysis,
             Graph = graph,
-            LoadedFromCache = current.LoadedFromCache
+            LoadedFromCache = current.LoadedFromCache,
+            AiRun = current.AiRun
         };
 
         await _settingsRepository.SaveAsync(settings, cancellationToken).ConfigureAwait(false);

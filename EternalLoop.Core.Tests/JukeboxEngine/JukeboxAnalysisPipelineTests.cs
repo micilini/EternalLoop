@@ -44,13 +44,25 @@ public sealed class JukeboxAnalysisPipelineTests
     }
 
     [Fact]
+    public async Task AnalyzeAsync_ReturnsCompletedAiRun_WhenAiSucceeds()
+    {
+        var pipeline = CreatePipeline();
+
+        var result = await pipeline.AnalyzeAsync("test.wav", new RecordingProgressReporter(), CancellationToken.None);
+
+        result.AiRun.Status.Should().Be(AiAnalysisRunStatus.Completed);
+        result.AiRun.UsedAi.Should().BeTrue();
+        result.AiRun.FellBackToClassic.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task AnalyzeAsync_SkipsAiData_WhenAiSimilarityIsDisabled()
     {
         var aiExtractor = new FakeAiEmbeddingExtractor();
         var cache = new FakeTrackAnalysisCache();
         var pipeline = CreatePipeline(cache: cache, aiEmbeddingExtractor: aiExtractor);
 
-        await pipeline.AnalyzeAsync(
+        var result = await pipeline.AnalyzeAsync(
             "test.wav",
             new RecordingProgressReporter(),
             CancellationToken.None,
@@ -59,6 +71,22 @@ public sealed class JukeboxAnalysisPipelineTests
         aiExtractor.CallCount.Should().Be(0);
         cache.Saved.Should().NotBeNull();
         cache.Saved!.Ai.Should().BeNull();
+        result.AiRun.Status.Should().Be(AiAnalysisRunStatus.Disabled);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_ReturnsDisabledAiRun_WhenAiSimilarityIsDisabled()
+    {
+        var pipeline = CreatePipeline();
+
+        var result = await pipeline.AnalyzeAsync(
+            "test.wav",
+            new RecordingProgressReporter(),
+            CancellationToken.None,
+            branchOptions: CreateBranchOptions(useAiSimilarity: false));
+
+        result.AiRun.Status.Should().Be(AiAnalysisRunStatus.Disabled);
+        result.AiRun.UsedAi.Should().BeFalse();
     }
 
     [Fact]
@@ -166,6 +194,20 @@ public sealed class JukeboxAnalysisPipelineTests
     }
 
     [Fact]
+    public async Task AnalyzeAsync_ReturnsLoadedFromCacheAiRun_WhenCompatibleAiCacheIsUsed()
+    {
+        var aiExtractor = new FakeAiEmbeddingExtractor();
+        var cache = new FakeTrackAnalysisCache { Cached = CreateCachedAnalysis(includeAi: true) };
+        var pipeline = CreatePipeline(cache: cache, aiEmbeddingExtractor: aiExtractor);
+
+        var result = await pipeline.AnalyzeAsync("test.wav", new RecordingProgressReporter(), CancellationToken.None);
+
+        result.AiRun.Status.Should().Be(AiAnalysisRunStatus.LoadedFromCache);
+        result.AiRun.UsedAi.Should().BeTrue();
+        aiExtractor.CallCount.Should().Be(0);
+    }
+
+    [Fact]
     public async Task AnalyzeAsync_IgnoresCachedAnalysisWithoutAi_WhenAiSimilarityIsEnabled()
     {
         var aiExtractor = new FakeAiEmbeddingExtractor();
@@ -227,6 +269,24 @@ public sealed class JukeboxAnalysisPipelineTests
     }
 
     [Fact]
+    public async Task AnalyzeAsync_ReturnsFailedFallbackAiRun_WhenAiFails()
+    {
+        var aiExtractor = new FakeAiEmbeddingExtractor
+        {
+            ExceptionToThrow = new IndexOutOfRangeException()
+        };
+        var pipeline = CreatePipeline(aiEmbeddingExtractor: aiExtractor);
+
+        var result = await pipeline.AnalyzeAsync("test.wav", new RecordingProgressReporter(), CancellationToken.None);
+
+        result.AiRun.Status.Should().Be(AiAnalysisRunStatus.FailedFallback);
+        result.AiRun.UsedAi.Should().BeFalse();
+        result.AiRun.FellBackToClassic.Should().BeTrue();
+        result.AiRun.FailureReason.Should().Contain(nameof(IndexOutOfRangeException));
+        result.Analysis.Ai.Should().BeNull();
+    }
+
+    [Fact]
     public async Task AnalyzeAsync_saves_analysis_without_ai_when_ai_fails()
     {
         var aiExtractor = new FakeAiEmbeddingExtractor
@@ -243,7 +303,38 @@ public sealed class JukeboxAnalysisPipelineTests
     }
 
     [Fact]
+    public async Task AnalyzeAsync_DoesNotPersistAiData_WhenAiFails()
+    {
+        var aiExtractor = new FakeAiEmbeddingExtractor
+        {
+            ExceptionToThrow = new IndexOutOfRangeException()
+        };
+        var cache = new FakeTrackAnalysisCache();
+        var pipeline = CreatePipeline(cache: cache, aiEmbeddingExtractor: aiExtractor);
+
+        var result = await pipeline.AnalyzeAsync("test.wav", new RecordingProgressReporter(), CancellationToken.None);
+
+        result.Analysis.Ai.Should().BeNull();
+        cache.Saved.Should().NotBeNull();
+        cache.Saved!.Ai.Should().BeNull();
+    }
+
+    [Fact]
     public async Task AnalyzeAsync_does_not_swallow_cancellation_when_ai_is_cancelled()
+    {
+        var aiExtractor = new FakeAiEmbeddingExtractor
+        {
+            ExceptionToThrow = new OperationCanceledException()
+        };
+        var pipeline = CreatePipeline(aiEmbeddingExtractor: aiExtractor);
+
+        var act = async () => await pipeline.AnalyzeAsync("test.wav", new RecordingProgressReporter(), CancellationToken.None);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_DoesNotSwallowCancellation_WhenAiIsCancelled()
     {
         var aiExtractor = new FakeAiEmbeddingExtractor
         {
@@ -268,7 +359,7 @@ public sealed class JukeboxAnalysisPipelineTests
 
         await pipeline.AnalyzeAsync("test.wav", progress, CancellationToken.None);
 
-        progress.Messages.Should().Contain("AI similarity unavailable. Using classic analysis.");
+        progress.Messages.Should().Contain("AI similarity failed. Using classic analysis.");
         progress.Stages.Should().Contain(AnalysisStage.Done);
     }
 

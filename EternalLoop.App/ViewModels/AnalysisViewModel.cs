@@ -132,6 +132,9 @@ public partial class AnalysisViewModel : ObservableObject, IAnalysisProgressRepo
             {
                 _ when message == "Loaded from cache" => "Your saved loop map is ready.",
                 _ when message == "Refreshing saved analysis" => "Refreshing your loop map...",
+                _ when string.Equals(message, "AI similarity failed. Using classic analysis.", StringComparison.Ordinal) => "AI unavailable. Continuing with classic analysis...",
+                _ when string.Equals(message, "AI similarity unavailable. Using classic analysis.", StringComparison.Ordinal) => "AI unavailable. Continuing with classic analysis...",
+                _ when string.Equals(message, "AI similarity is off. Using classic analysis.", StringComparison.Ordinal) => "Using classic analysis...",
                 AnalysisStage.Loading => "Preparing the track...",
                 AnalysisStage.ExtractingFeatures => "Listening for musical patterns...",
                 AnalysisStage.TrackingBeats => "Finding the rhythm...",

@@ -1,3 +1,4 @@
+using EternalLoop.Contracts.Enums;
 using EternalLoop.Contracts.Models;
 using EternalLoop.Contracts.Options;
 using FluentAssertions;
@@ -97,5 +98,83 @@ public sealed class AiContractsTests
         manifest.PatchFrames.Should().Be(ExpectedPatchFrames);
         manifest.EmbeddingDimensions.Should().Be(ExpectedEmbeddingDimensions);
         manifest.SampleRate.Should().Be(ExpectedSampleRate);
+    }
+
+    [Fact]
+    public void AiAnalysisRunInfo_completed_marks_ai_as_used()
+    {
+        var info = AiAnalysisRunInfo.Completed;
+
+        info.Status.Should().Be(AiAnalysisRunStatus.Completed);
+        info.UsedAi.Should().BeTrue();
+        info.FellBackToClassic.Should().BeFalse();
+    }
+
+    [Fact]
+    public void AiAnalysisRunInfo_loaded_from_cache_marks_ai_as_used()
+    {
+        var info = AiAnalysisRunInfo.LoadedFromCache;
+
+        info.Status.Should().Be(AiAnalysisRunStatus.LoadedFromCache);
+        info.UsedAi.Should().BeTrue();
+        info.FellBackToClassic.Should().BeFalse();
+    }
+
+    [Fact]
+    public void AiAnalysisRunInfo_failed_fallback_marks_classic_fallback()
+    {
+        var info = AiAnalysisRunInfo.FailedFallback(nameof(IndexOutOfRangeException));
+
+        info.Status.Should().Be(AiAnalysisRunStatus.FailedFallback);
+        info.UsedAi.Should().BeFalse();
+        info.FellBackToClassic.Should().BeTrue();
+        info.FailureReason.Should().Be(nameof(IndexOutOfRangeException));
+    }
+
+    [Fact]
+    public void AiAnalysisRunInfo_disabled_does_not_mark_ai_as_used()
+    {
+        var info = AiAnalysisRunInfo.Disabled;
+
+        info.Status.Should().Be(AiAnalysisRunStatus.Disabled);
+        info.UsedAi.Should().BeFalse();
+        info.FellBackToClassic.Should().BeFalse();
+    }
+
+    [Fact]
+    public void JukeboxAnalysisResult_requires_ai_run_info()
+    {
+        var result = new JukeboxAnalysisResult
+        {
+            Audio = new LoadedAudio([], ExpectedSampleRate, 0.0, "hash"),
+            Analysis = new TrackAnalysis
+            {
+                Metadata = new TrackMetadata
+                {
+                    FileHash = "hash",
+                    FilePath = "track.wav",
+                    DurationSeconds = 0.0,
+                    SampleRate = ExpectedSampleRate,
+                    Tempo = 0.0,
+                    TimeSignature = 4,
+                    SchemaVersion = TrackAnalysis.CurrentSchemaVersion
+                },
+                Segments = [],
+                Beats = [],
+                Bars = [],
+                Tatums = [],
+                Sections = []
+            },
+            Graph = new JukeboxGraph
+            {
+                Nodes = [],
+                JumpEdges = new Dictionary<int, List<JukeboxEdge>>(),
+                SimilarityThreshold = 0.0,
+                LookaheadDepth = 1
+            },
+            AiRun = AiAnalysisRunInfo.Disabled
+        };
+
+        result.AiRun.Status.Should().Be(AiAnalysisRunStatus.Disabled);
     }
 }
