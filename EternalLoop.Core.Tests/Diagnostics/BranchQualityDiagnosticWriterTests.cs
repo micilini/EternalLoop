@@ -66,6 +66,14 @@ public sealed class BranchQualityDiagnosticWriterTests
             summary.Should().Contain("FinalEdgeCount: 2");
             summary.Should().Contain("FinalSourceCount: 1");
             summary.Should().Contain("MaxBranchSourceRatio: 0.22");
+            summary.Should().Contain("BackwardEdgeCount: 0");
+            summary.Should().Contain("ForwardEdgeCount: 2");
+            summary.Should().Contain("LongBackwardEdgeCount: 0");
+            summary.Should().Contain("MetricMatchedEdgeCount: 2");
+            summary.Should().Contain("MetricMatchedRatio: 1");
+            summary.Should().Contain("EdgeToBeatRatio: 0.125");
+            summary.Should().Contain("SourceToBeatRatio: 0.0625");
+            summary.Should().Contain("PresetLikeThreshold: 0.86");
             summary.Should().NotContain("C:\\");
         }
         finally

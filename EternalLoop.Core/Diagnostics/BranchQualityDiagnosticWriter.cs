@@ -111,6 +111,21 @@ public static class BranchQualityDiagnosticWriter
         BranchFindingOptions options)
     {
         var sourceCount = edges.Select(edge => edge.FromBeat).Distinct().Count();
+        var timeSignature = Math.Max(1, analysis.Metadata.TimeSignature);
+        var backwardEdgeCount = edges.Count(edge => edge.ToBeat < edge.FromBeat);
+        var forwardEdgeCount = edges.Count(edge => edge.ToBeat > edge.FromBeat);
+        var longBackwardDistance = analysis.Beats.Count * 0.10;
+        var longBackwardEdgeCount = edges.Count(edge =>
+            edge.ToBeat < edge.FromBeat &&
+            Math.Abs(edge.ToBeat - edge.FromBeat) >= longBackwardDistance);
+        var metricMatchedEdgeCount = edges.Count(edge =>
+            GetMetricSlot(edge.FromBeat, timeSignature) == GetMetricSlot(edge.ToBeat, timeSignature));
+        var metricMatchedRatio = edges.Count == 0
+            ? 0.0
+            : metricMatchedEdgeCount / (double)edges.Count;
+        var edgeToBeatRatio = analysis.Beats.Count == 0
+            ? 0.0
+            : edges.Count / (double)analysis.Beats.Count;
         var finalSourceRatio = analysis.Beats.Count == 0
             ? 0.0
             : sourceCount / (double)analysis.Beats.Count;
@@ -126,6 +141,14 @@ public static class BranchQualityDiagnosticWriter
         builder.AppendLine($"FinalSourceCount: {sourceCount.ToString(CultureInfo.InvariantCulture)}");
         builder.AppendLine($"FinalSourceRatio: {Format(finalSourceRatio)}");
         builder.AppendLine($"AverageEdgesPerSource: {Format(averageEdgesPerSource)}");
+        builder.AppendLine($"BackwardEdgeCount: {backwardEdgeCount.ToString(CultureInfo.InvariantCulture)}");
+        builder.AppendLine($"ForwardEdgeCount: {forwardEdgeCount.ToString(CultureInfo.InvariantCulture)}");
+        builder.AppendLine($"LongBackwardEdgeCount: {longBackwardEdgeCount.ToString(CultureInfo.InvariantCulture)}");
+        builder.AppendLine($"MetricMatchedEdgeCount: {metricMatchedEdgeCount.ToString(CultureInfo.InvariantCulture)}");
+        builder.AppendLine($"MetricMatchedRatio: {Format(metricMatchedRatio)}");
+        builder.AppendLine($"EdgeToBeatRatio: {Format(edgeToBeatRatio)}");
+        builder.AppendLine($"SourceToBeatRatio: {Format(finalSourceRatio)}");
+        builder.AppendLine($"PresetLikeThreshold: {Format(options.SimilarityThreshold)}");
         builder.AppendLine($"SimilarityThreshold: {Format(options.SimilarityThreshold)}");
         builder.AppendLine($"LookaheadDepth: {options.LookaheadDepth.ToString(CultureInfo.InvariantCulture)}");
         builder.AppendLine($"MinJumpDistance: {options.MinJumpDistance.ToString(CultureInfo.InvariantCulture)}");
