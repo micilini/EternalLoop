@@ -18,4 +18,8 @@ public interface IJukeboxAnalysisPipeline
     JukeboxGraph BuildGraph(
         IReadOnlyList<Beat> beats,
         BranchFindingOptions options);
+
+    JukeboxGraph BuildGraph(
+        TrackAnalysis analysis,
+        BranchFindingOptions options);
 }

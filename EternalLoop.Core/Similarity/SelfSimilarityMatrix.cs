@@ -1,4 +1,5 @@
 using EternalLoop.Contracts.Models;
+using EternalLoop.Contracts.Options;
 
 namespace EternalLoop.Core.Similarity;
 
@@ -17,11 +18,50 @@ public static class SelfSimilarityMatrix
     {
         ArgumentNullException.ThrowIfNull(beats);
 
+        return ComputeInternal(
+            beats,
+            timbreWeight,
+            pitchWeight,
+            loudnessWeight,
+            barPositionWeight,
+            null,
+            null);
+    }
+
+    public static double[,] Compute(TrackAnalysis analysis, BranchFindingOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(analysis);
+        ArgumentNullException.ThrowIfNull(options);
+
+        var embeddings = options.UseAiSimilarity
+            ? analysis.Ai?.BeatEmbeddings.ToDictionary(embedding => embedding.BeatIndex, embedding => embedding.Vector)
+            : null;
+
+        return ComputeInternal(
+            analysis.Beats,
+            options.TimbreWeight,
+            options.PitchWeight,
+            options.LoudnessWeight,
+            options.BarPositionWeight,
+            embeddings,
+            options);
+    }
+
+    private static double[,] ComputeInternal(
+        IReadOnlyList<Beat> beats,
+        double timbreWeight,
+        double pitchWeight,
+        double loudnessWeight,
+        double barPositionWeight,
+        IReadOnlyDictionary<int, float[]>? aiEmbeddings,
+        BranchFindingOptions? options)
+    {
         if (beats.Count == 0)
         {
             return new double[0, 0];
         }
 
+        var useAi = options is not null && aiEmbeddings is { Count: > 0 };
         var weights = NormalizeBaseWeights(timbreWeight, pitchWeight, loudnessWeight);
         var metricPenaltyStrength = Math.Clamp(barPositionWeight, 0.0, MaximumMetricPenaltyStrength);
         var matrix = new double[beats.Count, beats.Count];
@@ -46,6 +86,20 @@ public static class SelfSimilarityMatrix
 
                 var metricPenalty = 1.0 - (metricPenaltyStrength * (1.0 - barPosition));
                 var score = Math.Clamp(baseScore * metricPenalty, 0.0, 1.0);
+
+                if (useAi &&
+                    aiEmbeddings!.TryGetValue(beats[i].Index, out var sourceEmbedding) &&
+                    aiEmbeddings.TryGetValue(beats[j].Index, out var destinationEmbedding))
+                {
+                    _ = AiSimilarityGate.TryApply(
+                        score,
+                        sourceEmbedding,
+                        destinationEmbedding,
+                        options!.AiRejectionThreshold,
+                        options.AiPenaltyStartThreshold,
+                        options.AiPenaltyStrength,
+                        out score);
+                }
 
                 matrix[i, j] = score;
                 matrix[j, i] = score;

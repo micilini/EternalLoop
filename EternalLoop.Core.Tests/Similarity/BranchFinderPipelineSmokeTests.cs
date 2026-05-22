@@ -37,6 +37,36 @@ public sealed class BranchFinderPipelineSmokeTests
             edge.Similarity <= 1.0);
     }
 
+    [Fact]
+    public void F7Pipeline_Should_AggregateBeatsUseAiEmbeddingsAndFindBranches()
+    {
+        var beatTracking = new BeatTrackingResult
+        {
+            EstimatedBpm = 120,
+            BeatTimes = Enumerable.Range(0, 16).Select(i => i * 0.5).ToArray(),
+            Confidences = Enumerable.Repeat(1.0, 16).ToArray()
+        };
+        var features = CreateRepeatedFeatureMatrix();
+        var beats = BeatFeatureAggregator.AggregateFeatures(beatTracking, features, 22_050);
+        var analysis = CreateAnalysis(beats);
+        var finder = new CosineSimilarityBranchFinder();
+
+        var edges = finder.FindBranches(analysis, new BranchFindingOptions
+        {
+            UseAiSimilarity = true,
+            SimilarityThreshold = 0.9,
+            LookaheadDepth = 2,
+            MinJumpDistance = 6,
+            LandingOffsetBeats = 0
+        });
+
+        edges.Should().NotBeEmpty();
+        edges.Should().OnlyContain(edge =>
+            edge.Similarity >= 0.0 &&
+            edge.Similarity <= 1.0);
+        edges.Should().NotContain(edge => edge.FromBeat == 0 && edge.ToBeat == 8);
+    }
+
     private static FeatureMatrix CreateRepeatedFeatureMatrix()
     {
         var mfcc = new float[16][];
@@ -65,6 +95,42 @@ public sealed class BranchFinderPipelineSmokeTests
             Rms = new float[16],
             HopLengthSamples = 11_025,
             FrameSizeSamples = 2048
+        };
+    }
+
+    private static TrackAnalysis CreateAnalysis(IReadOnlyList<Beat> beats)
+    {
+        return new TrackAnalysis
+        {
+            Metadata = new TrackMetadata
+            {
+                FileHash = "hash",
+                FilePath = "track.wav",
+                DurationSeconds = 8.0,
+                SampleRate = 22_050,
+                Tempo = 120.0,
+                TimeSignature = 4,
+                SchemaVersion = TrackAnalysis.CurrentSchemaVersion
+            },
+            Segments = [],
+            Beats = beats,
+            Bars = [],
+            Tatums = [],
+            Sections = [],
+            Ai = new AiAnalysisData
+            {
+                ModelId = AiModelDefaultValues.DiscogsEffNetModelId,
+                ModelVersion = AiModelDefaultValues.DiscogsEffNetVersion,
+                SampleRate = AiModelDefaultValues.DiscogsEffNetSampleRate,
+                EmbeddingDimensions = AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions,
+                BeatEmbeddings = beats
+                    .Select(beat => new AiBeatEmbedding
+                    {
+                        BeatIndex = beat.Index,
+                        Vector = beat.Index == 8 ? [0.0f, 1.0f] : [1.0f, 0.0f]
+                    })
+                    .ToArray()
+            }
         };
     }
 }

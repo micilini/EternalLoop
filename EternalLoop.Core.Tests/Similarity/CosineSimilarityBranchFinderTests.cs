@@ -301,6 +301,102 @@ public sealed class CosineSimilarityBranchFinderTests
         edges.Count.Should().BeLessThanOrEqualTo(650);
     }
 
+    [Fact]
+    public void FindBranches_WithTrackAnalysis_Should_MatchClassic_WhenAiDisabled()
+    {
+        var finder = new CosineSimilarityBranchFinder();
+        var beats = CreateIdenticalBeats(16);
+        var analysis = CreateAnalysis(beats, CreateRejectingAiData(beats));
+        var options = CreateAiOptions(useAiSimilarity: false);
+
+        var classic = finder.FindBranches(beats, options);
+        var hybrid = finder.FindBranches(analysis, options);
+
+        hybrid.Select(edge => (edge.FromBeat, edge.ToBeat)).Should().Equal(classic.Select(edge => (edge.FromBeat, edge.ToBeat)));
+    }
+
+    [Fact]
+    public void FindBranches_WithTrackAnalysis_Should_MatchClassic_WhenAiDataIsMissing()
+    {
+        var finder = new CosineSimilarityBranchFinder();
+        var beats = CreateIdenticalBeats(16);
+        var analysis = CreateAnalysis(beats, ai: null);
+        var options = CreateAiOptions(useAiSimilarity: true);
+
+        var classic = finder.FindBranches(beats, options);
+        var hybrid = finder.FindBranches(analysis, options);
+
+        hybrid.Select(edge => (edge.FromBeat, edge.ToBeat)).Should().Equal(classic.Select(edge => (edge.FromBeat, edge.ToBeat)));
+    }
+
+    [Fact]
+    public void FindBranches_WithTrackAnalysis_Should_ProduceNoMoreEdgesThanClassic_WhenAiEnabled()
+    {
+        var finder = new CosineSimilarityBranchFinder();
+        var beats = CreateIdenticalBeats(24);
+        var options = CreateAiOptions(useAiSimilarity: true);
+        var classic = finder.FindBranches(beats, options);
+        var hybrid = finder.FindBranches(CreateAnalysis(beats, CreateAiData(beats, compatible: false)), options);
+
+        hybrid.Count.Should().BeLessThanOrEqualTo(classic.Count);
+    }
+
+    [Fact]
+    public void FindBranches_WithTrackAnalysis_Should_RejectAiIncompatibleBranch()
+    {
+        var finder = new CosineSimilarityBranchFinder();
+        var beats = CreateIdenticalBeats(16);
+        var analysis = CreateAnalysis(beats, CreateRejectingAiData(beats));
+
+        var edges = finder.FindBranches(analysis, CreateAiOptions(useAiSimilarity: true));
+
+        edges.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void FindBranches_WithTrackAnalysis_Should_StillProduceEdges_WhenAiCompatible()
+    {
+        var finder = new CosineSimilarityBranchFinder();
+        var beats = CreateIdenticalBeats(16);
+        var analysis = CreateAnalysis(beats, CreateAiData(beats, compatible: true));
+
+        var edges = finder.FindBranches(analysis, CreateAiOptions(useAiSimilarity: true));
+
+        edges.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void FindBranches_WithTrackAnalysis_Should_NotLetAdaptiveThresholdReviveRejectedAiPairs()
+    {
+        var finder = new CosineSimilarityBranchFinder();
+        var beats = CreateIdenticalBeats(24);
+        var analysis = CreateAnalysis(beats, CreateRejectingAiData(beats));
+        var options = new BranchFindingOptions
+        {
+            UseAiSimilarity = true,
+            SimilarityThreshold = 1.0,
+            LookaheadDepth = 0,
+            ContinuationLookaheadDepth = 0,
+            ContinuationThresholdMargin = 0.0,
+            MinJumpDistance = 1
+        };
+
+        var edges = finder.FindBranches(analysis, options);
+
+        edges.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void FindBranches_WithBeatsOverload_Should_RemainClassic()
+    {
+        var finder = new CosineSimilarityBranchFinder();
+        var beats = CreateIdenticalBeats(16);
+
+        var edges = finder.FindBranches(beats, CreateAiOptions(useAiSimilarity: true));
+
+        edges.Should().NotBeEmpty();
+    }
+
     private static Beat[] CreateRepeatedBeats(int count = 20)
     {
         var beats = Enumerable.Range(0, count)
@@ -390,5 +486,91 @@ public sealed class CosineSimilarityBranchFinderTests
         }
 
         return beats;
+    }
+
+    private static BranchFindingOptions CreateAiOptions(bool useAiSimilarity)
+    {
+        return new BranchFindingOptions
+        {
+            UseAiSimilarity = useAiSimilarity,
+            SimilarityThreshold = 0.90,
+            LookaheadDepth = 0,
+            ContinuationLookaheadDepth = 0,
+            ContinuationThresholdMargin = 0.0,
+            MinJumpDistance = 4,
+            MaxBranchesPerBeat = 3,
+            LandingOffsetBeats = 0,
+            TimbreWeight = 1.0,
+            PitchWeight = 0.0,
+            LoudnessWeight = 0.0,
+            BarPositionWeight = 0.0,
+            AiRejectionThreshold = 0.58,
+            AiPenaltyStartThreshold = 0.72,
+            AiPenaltyStrength = 0.22
+        };
+    }
+
+    private static TrackAnalysis CreateAnalysis(IReadOnlyList<Beat> beats, AiAnalysisData? ai)
+    {
+        return new TrackAnalysis
+        {
+            Metadata = new TrackMetadata
+            {
+                FileHash = "hash",
+                FilePath = "track.wav",
+                DurationSeconds = beats.Count * 0.5,
+                SampleRate = 22_050,
+                Tempo = 120.0,
+                TimeSignature = 4,
+                SchemaVersion = TrackAnalysis.CurrentSchemaVersion
+            },
+            Segments = [],
+            Beats = beats,
+            Bars = [],
+            Tatums = [],
+            Sections = [],
+            Ai = ai
+        };
+    }
+
+    private static AiAnalysisData CreateAiData(IReadOnlyList<Beat> beats, bool compatible)
+    {
+        return new AiAnalysisData
+        {
+            ModelId = AiModelDefaultValues.DiscogsEffNetModelId,
+            ModelVersion = AiModelDefaultValues.DiscogsEffNetVersion,
+            SampleRate = AiModelDefaultValues.DiscogsEffNetSampleRate,
+            EmbeddingDimensions = AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions,
+            BeatEmbeddings = beats
+                .Select(beat => new AiBeatEmbedding
+                {
+                    BeatIndex = beat.Index,
+                    Vector = compatible || beat.Index % 2 == 0 ? [1.0f, 0.0f] : [0.0f, 1.0f]
+                })
+                .ToArray()
+        };
+    }
+
+    private static AiAnalysisData CreateRejectingAiData(IReadOnlyList<Beat> beats)
+    {
+        return new AiAnalysisData
+        {
+            ModelId = AiModelDefaultValues.DiscogsEffNetModelId,
+            ModelVersion = AiModelDefaultValues.DiscogsEffNetVersion,
+            SampleRate = AiModelDefaultValues.DiscogsEffNetSampleRate,
+            EmbeddingDimensions = AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions,
+            BeatEmbeddings = beats
+                .Select((beat, index) =>
+                {
+                    var vector = new float[beats.Count];
+                    vector[index] = 1.0f;
+                    return new AiBeatEmbedding
+                    {
+                        BeatIndex = beat.Index,
+                        Vector = vector
+                    };
+                })
+                .ToArray()
+        };
     }
 }

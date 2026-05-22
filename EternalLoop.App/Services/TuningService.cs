@@ -44,7 +44,7 @@ public sealed class TuningService : ITuningService
             };
         }
 
-        var graph = _pipeline.BuildGraph(current.Analysis.Beats, branchOptions);
+        var graph = _pipeline.BuildGraph(current.Analysis, branchOptions);
         _engine.ReloadGraph(graph);
 
         _sessionState.CurrentResult = new JukeboxAnalysisResult

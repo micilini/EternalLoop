@@ -96,7 +96,7 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
                     _logger.LogInformation("Track analysis cache hit for {FileHash}", audio.FileHash);
 
                     progressReporter.Report(AnalysisStage.BuildingGraph, 0.0, "Loading loop map");
-                    var cachedGraph = BuildGraph(cachedAnalysis.Beats, effectiveBranchOptions);
+                    var cachedGraph = BuildGraph(cachedAnalysis, effectiveBranchOptions);
                     progressReporter.Report(AnalysisStage.BuildingGraph, 1.0, "Loop map ready");
                     progressReporter.Report(AnalysisStage.Done, 1.0, "Loaded from cache");
 
@@ -164,7 +164,7 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
         progressReporter.Report(AnalysisStage.BuildingGraph, 0.0, "Building graph");
         var analysis = BuildAnalysis(filePath, audio, beatTracking, features, beats, aiResult.Data);
         await _cache.SaveAsync(analysis, cancellationToken).ConfigureAwait(false);
-        var graph = BuildGraph(beats, effectiveBranchOptions);
+        var graph = BuildGraph(analysis, effectiveBranchOptions);
         progressReporter.Report(AnalysisStage.BuildingGraph, 1.0, $"Built {graph.JumpEdges.Sum(pair => pair.Value.Count)} jump edges");
 
         progressReporter.Report(AnalysisStage.Done, 1.0, "Analysis complete");
@@ -193,6 +193,17 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
 
         var edges = _branchFinder.FindBranches(beats, options);
         return JukeboxGraphBuilder.Build(beats, edges, options);
+    }
+
+    public JukeboxGraph BuildGraph(
+        TrackAnalysis analysis,
+        BranchFindingOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(analysis);
+        ArgumentNullException.ThrowIfNull(options);
+
+        var edges = _branchFinder.FindBranches(analysis, options);
+        return JukeboxGraphBuilder.Build(analysis.Beats, edges, options);
     }
 
     private static TrackAnalysis BuildAnalysis(

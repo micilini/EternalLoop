@@ -164,6 +164,32 @@ public sealed class JukeboxAnalysisPipelineTests
     }
 
     [Fact]
+    public void BuildGraph_WithTrackAnalysis_UsesAiEmbeddings_WhenEnabled()
+    {
+        var branchFinder = new FakeBranchFinder();
+        var pipeline = CreatePipeline(branchFinder: branchFinder);
+        var analysis = CreateCachedAnalysis(includeAi: true);
+
+        _ = pipeline.BuildGraph(analysis, CreateBranchOptions(useAiSimilarity: true));
+
+        branchFinder.ReceivedTrackAnalysis.Should().BeTrue();
+        branchFinder.ReceivedBeats.Should().BeFalse();
+    }
+
+    [Fact]
+    public void BuildGraph_WithTrackAnalysis_UsesClassicMatrix_WhenDisabled()
+    {
+        var branchFinder = new FakeBranchFinder();
+        var pipeline = CreatePipeline(branchFinder: branchFinder);
+        var analysis = CreateCachedAnalysis(includeAi: true);
+
+        _ = pipeline.BuildGraph(analysis, CreateBranchOptions(useAiSimilarity: false));
+
+        branchFinder.ReceivedTrackAnalysis.Should().BeTrue();
+        branchFinder.LastOptions!.UseAiSimilarity.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task AnalyzeAsync_UsesCache_WhenAnalysisExists()
     {
         var audioLoader = new FakeAudioLoader();
@@ -699,13 +725,31 @@ public sealed class JukeboxAnalysisPipelineTests
     {
         public bool WasCalled { get; private set; }
 
+        public bool ReceivedBeats { get; private set; }
+
+        public bool ReceivedTrackAnalysis { get; private set; }
+
         public BranchFindingOptions? LastOptions { get; private set; }
 
         public IReadOnlyList<JukeboxEdge> FindBranches(IReadOnlyList<Beat> beats, BranchFindingOptions options)
         {
             WasCalled = true;
+            ReceivedBeats = true;
             LastOptions = options;
 
+            return CreateEdges(beats);
+        }
+
+        public IReadOnlyList<JukeboxEdge> FindBranches(TrackAnalysis analysis, BranchFindingOptions options)
+        {
+            WasCalled = true;
+            ReceivedTrackAnalysis = true;
+            LastOptions = options;
+            return CreateEdges(analysis.Beats);
+        }
+
+        private static IReadOnlyList<JukeboxEdge> CreateEdges(IReadOnlyList<Beat> beats)
+        {
             return beats.Count >= 3
                 ?
                 [
