@@ -19,6 +19,14 @@
     <ApplicationIcon>eternalloop-ico.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <DiscogsEffNetModelDirectory>$(MSBuildProjectDirectory)\Assets\Models\DiscogsEffNet</DiscogsEffNetModelDirectory>
+    <DiscogsEffNetOnnxPath>$(DiscogsEffNetModelDirectory)\discogs_track_embeddings-effnet-bs64-1.onnx</DiscogsEffNetOnnxPath>
+    <DiscogsEffNetMetadataPath>$(DiscogsEffNetModelDirectory)\discogs_track_embeddings-effnet-bs64-1.json</DiscogsEffNetMetadataPath>
+    <DiscogsEffNetManifestPath>$(DiscogsEffNetModelDirectory)\model-manifest.json</DiscogsEffNetManifestPath>
+    <DiscogsEffNetLicenseNoticePath>$(DiscogsEffNetModelDirectory)\MODEL-LICENSE-NOTICE.txt</DiscogsEffNetLicenseNoticePath>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="MaterialDesignColors" Version="5.3.2" />
@@ -44,7 +52,21 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="Assets\Models\DiscogsEffNet\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="eternalloop-ico.ico" />
   </ItemGroup>
+
+  <Target Name="ValidateAiModelFiles" BeforeTargets="Publish">
+    <Error Condition="!Exists('$(DiscogsEffNetOnnxPath)')" Text="AI model ONNX file is missing. Run tools/download-ai-models.ps1 before publishing." />
+    <Error Condition="!Exists('$(DiscogsEffNetMetadataPath)')" Text="AI model metadata file is missing. Run tools/download-ai-models.ps1 before publishing." />
+    <Error Condition="!Exists('$(DiscogsEffNetManifestPath)')" Text="AI model manifest is missing." />
+    <Error Condition="!Exists('$(DiscogsEffNetLicenseNoticePath)')" Text="AI model license notice is missing." />
+  </Target>
 
 </Project>

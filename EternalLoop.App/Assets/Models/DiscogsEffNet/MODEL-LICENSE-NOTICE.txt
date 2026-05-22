@@ -1,0 +1,19 @@
+EternalLoop AI Model Notice
+
+Model: discogs_track_embeddings-effnet-bs64-1.onnx
+Metadata: discogs_track_embeddings-effnet-bs64-1.json
+Provider: MTG / Essentia
+Source: https://essentia.upf.edu/models/feature-extractors/discogs-effnet/
+License: CC BY-NC-SA 4.0
+
+The EternalLoop application source code is licensed under the MIT License.
+The Discogs-EffNet model files are third-party assets and are not covered by the EternalLoop MIT source license.
+
+The model license must be reviewed before any public, commercial, paid, store-distributed, or bundled release.
+If a release requires permissions beyond CC BY-NC-SA 4.0, obtain an appropriate license from the model provider or replace the model before distribution.
+
+The model is used locally for offline audio similarity analysis.
+The app must not download this model at runtime.
+The model must be downloaded before build or publish, or provided by the release build environment.
+
+Training datasets are not included, downloaded, required, or redistributed by EternalLoop.

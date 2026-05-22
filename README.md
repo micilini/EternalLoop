@@ -172,6 +172,26 @@ The cache stores analysis data, not copies of your music files.
 
 If the analysis model changes between versions, old cache entries can be ignored automatically and rebuilt the next time the track is opened.
 
+## Local AI Model Assets
+
+EternalLoop V1.1.0 prepares a local AI similarity mode based on the Discogs-EffNet ONNX model.
+
+The app source code remains MIT licensed. The model files are third-party assets and are governed by their own license notice inside:
+
+```text
+EternalLoop.App/Assets/Models/DiscogsEffNet/MODEL-LICENSE-NOTICE.txt
+```
+
+Before publishing a build that includes AI mode, download the model files with:
+
+```powershell
+.\tools\download-ai-models.ps1
+```
+
+The final app must not download the model at runtime. Release builds must package the model files locally so the application can run offline.
+
+Any public, commercial, paid, store-distributed, or bundled release must validate the model license before distribution.
+
 ## Screens
 
 EternalLoop currently includes these main screens:
@@ -237,6 +257,7 @@ The project is split into three main assemblies:
 - Microsoft.Extensions.Hosting
 - Microsoft.Extensions.DependencyInjection
 - Microsoft.Extensions.Logging
+- Local AI model packaging preparation for ONNX-based similarity analysis.
 
 ## How to Run Locally
 
@@ -278,6 +299,12 @@ The test suite covers audio format detection, feature extraction, beat tracking,
 
 Recommended Windows release publish command:
 
+Before publishing a release build with local AI assets, run:
+
+```powershell
+.\tools\download-ai-models.ps1
+```
+
 ```powershell
 dotnet publish .\EternalLoop.App\EternalLoop.App.csproj `
   -c Release `
@@ -287,6 +314,15 @@ dotnet publish .\EternalLoop.App\EternalLoop.App.csproj `
   -p:PublishReadyToRun=true `
   -p:EnableCompressionInSingleFile=true `
   -o .\publish\EternalLoop-win-x64
+```
+
+The publish output must include:
+
+```text
+Assets/Models/DiscogsEffNet/discogs_track_embeddings-effnet-bs64-1.onnx
+Assets/Models/DiscogsEffNet/discogs_track_embeddings-effnet-bs64-1.json
+Assets/Models/DiscogsEffNet/model-manifest.json
+Assets/Models/DiscogsEffNet/MODEL-LICENSE-NOTICE.txt
 ```
 
 Recommended release settings:
@@ -348,4 +384,6 @@ You can open issues for bugs, improvements, documentation updates, audio-analysi
 
 ## License
 
-This project is open-source and available under the MIT License.
+This project source code is open-source and available under the MIT License.
+
+Third-party model assets are not covered by the EternalLoop MIT source license. See the model-specific notice in `EternalLoop.App/Assets/Models/DiscogsEffNet/MODEL-LICENSE-NOTICE.txt` before distributing builds that include AI assets.

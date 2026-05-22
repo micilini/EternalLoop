@@ -13,3 +13,5 @@ TestResults/
 /*.flac
 /*.m4a
 /*.aac
+EternalLoop.App/Assets/Models/DiscogsEffNet/discogs_track_embeddings-effnet-bs64-1.onnx
+EternalLoop.App/Assets/Models/DiscogsEffNet/discogs_track_embeddings-effnet-bs64-1.json
