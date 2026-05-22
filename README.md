@@ -196,6 +196,16 @@ EternalLoop uses ONNX Runtime CPU for local AI model inference. The Discogs-EffN
 
 The local AI foundation includes model assets, ONNX Runtime CPU loading, and deterministic preprocessing that prepares mel patches compatible with the packaged model.
 
+### Local AI Similarity
+
+EternalLoop V1.1.0 can use a bundled local ONNX model to help filter weak musical branches. This runs locally on CPU and does not upload audio files.
+
+The option can be changed in Settings:
+
+- AI ON: uses local embeddings when analyzing tracks.
+- AI OFF: skips AI and uses the faster classic DSP pipeline.
+- If AI fails for a track, EternalLoop falls back to classic analysis and keeps diagnostics available in the player.
+
 ## Screens
 
 EternalLoop currently includes these main screens:

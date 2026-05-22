@@ -21,6 +21,16 @@ public sealed class JsonSettingsRepositoryTests
     }
 
     [Fact]
+    public async Task LoadAsync_DefaultSettings_EnableAiSimilarity()
+    {
+        var repository = CreateRepository(out _);
+
+        var settings = await repository.LoadAsync(CancellationToken.None);
+
+        settings.UseAiSimilarity.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task SaveAsync_ThenLoadAsync_Should_PreserveSettings()
     {
         var repository = CreateRepository(out _);
@@ -56,6 +66,21 @@ public sealed class JsonSettingsRepositoryTests
         settings.UseAiSimilarity.Should().BeFalse();
         settings.SettingsSchemaVersion.Should().Be(3);
         settings.RecentFiles.Should().Equal("a.mp3", "b.mp3");
+    }
+
+    [Fact]
+    public async Task SaveAsync_Roundtrips_UseAiSimilarity_False()
+    {
+        var repository = CreateRepository(out _);
+
+        await repository.SaveAsync(new UserSettings
+        {
+            UseAiSimilarity = false
+        }, CancellationToken.None);
+
+        var settings = await repository.LoadAsync(CancellationToken.None);
+
+        settings.UseAiSimilarity.Should().BeFalse();
     }
 
     [Fact]
@@ -185,6 +210,23 @@ public sealed class JsonSettingsRepositoryTests
         settings.JumpProbability.Should().Be(0.55);
         settings.JumpCooldown.Should().Be(4);
         settings.FirstPassLinearPlaybackRatio.Should().Be(0.65);
+    }
+
+    [Fact]
+    public async Task LoadAsync_Migrates_MissingAiFlag_To_DefaultTrue()
+    {
+        var repository = CreateRepository(out var paths);
+        await File.WriteAllTextAsync(paths.SettingsFilePath, """
+            {
+              "SettingsSchemaVersion": 2,
+              "Preset": "Balanced"
+            }
+            """);
+
+        var settings = await repository.LoadAsync(CancellationToken.None);
+
+        settings.SettingsSchemaVersion.Should().Be(3);
+        settings.UseAiSimilarity.Should().BeTrue();
     }
 
     [Fact]

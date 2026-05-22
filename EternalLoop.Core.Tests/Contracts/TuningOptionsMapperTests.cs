@@ -57,6 +57,25 @@ public sealed class TuningOptionsMapperTests
     }
 
     [Fact]
+    public void ToBranchFindingOptions_Uses_AiToggle_FromSettings()
+    {
+        var disabledSettings = new UserSettings
+        {
+            UseAiSimilarity = false
+        };
+        var enabledSettings = new UserSettings
+        {
+            UseAiSimilarity = true
+        };
+
+        var disabledOptions = TuningOptionsMapper.ToBranchFindingOptions(disabledSettings);
+        var enabledOptions = TuningOptionsMapper.ToBranchFindingOptions(enabledSettings);
+
+        disabledOptions.UseAiSimilarity.Should().BeFalse();
+        enabledOptions.UseAiSimilarity.Should().BeTrue();
+    }
+
+    [Fact]
     public void ToJukeboxEngineOptions_Should_Map_UserSettings()
     {
         var settings = new UserSettings
