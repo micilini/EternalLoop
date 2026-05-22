@@ -1,3 +1,4 @@
+using EternalLoop.Contracts.Enums;
 using EternalLoop.Contracts.Models;
 using EternalLoop.Contracts.Options;
 using EternalLoop.Core.Similarity;
@@ -503,6 +504,130 @@ public sealed class SelfSimilarityMatrixTests
         matrix[0, 1].Should().BeInRange(0.0, 1.0);
     }
 
+    [Fact]
+    public void Compute_Should_UseMetricPositionGate_WhenOptionsAreProvided()
+    {
+        var beats = CreateMetricMismatchBeats();
+        var options = CreateMetricOptions(MetricPositionMode.StrongPenalty, penaltyStrength: 0.32);
+
+        var matrix = SelfSimilarityMatrix.Compute(beats, options);
+
+        matrix[0, 1].Should().BeLessThan(1.0);
+        matrix[0, 1].Should().BeGreaterThan(0.0);
+    }
+
+    [Fact]
+    public void Compute_Should_RejectMetricMismatch_WhenStrictGateIsEnabled()
+    {
+        var beats = CreateMetricMismatchBeats();
+        var options = CreateMetricOptions(
+            MetricPositionMode.StrictGate,
+            penaltyStrength: 0.45,
+            rejectionThreshold: 0.95);
+
+        var matrix = SelfSimilarityMatrix.Compute(beats, options);
+
+        matrix[0, 1].Should().Be(0.0);
+        matrix[1, 0].Should().Be(0.0);
+    }
+
+    [Fact]
+    public void Compute_Should_PenalizeMetricMismatch_WhenStrongPenaltyIsEnabled()
+    {
+        var beats = CreateMetricMismatchBeats();
+        var options = CreateMetricOptions(MetricPositionMode.StrongPenalty, penaltyStrength: 0.32);
+
+        var matrix = SelfSimilarityMatrix.Compute(beats, options);
+
+        matrix[0, 1].Should().BeLessThan(1.0);
+        matrix[0, 1].Should().BeGreaterThan(0.0);
+    }
+
+    [Fact]
+    public void Compute_Should_PenalizeLess_WhenSoftPenaltyIsEnabled()
+    {
+        var beats = CreateMetricMismatchBeats();
+        var strong = SelfSimilarityMatrix.Compute(
+            beats,
+            CreateMetricOptions(MetricPositionMode.StrongPenalty, penaltyStrength: 0.32));
+        var soft = SelfSimilarityMatrix.Compute(
+            beats,
+            CreateMetricOptions(MetricPositionMode.SoftPenalty, penaltyStrength: 0.16));
+
+        soft[0, 1].Should().BeGreaterThan(strong[0, 1]);
+        soft[0, 1].Should().BeLessThan(1.0);
+    }
+
+    [Fact]
+    public void Compute_Should_PreserveBaseScore_WhenMetricPositionDisabled()
+    {
+        var beats = CreateMetricMismatchBeats();
+        var options = CreateMetricOptions(MetricPositionMode.Disabled, penaltyStrength: 1.0);
+
+        var matrix = SelfSimilarityMatrix.Compute(beats, options);
+
+        matrix[0, 1].Should().BeApproximately(1.0, 1e-6);
+    }
+
+    [Fact]
+    public void Compute_Should_NotApplyLegacyBarPositionWeight_WhenOptionsUseMetricGate()
+    {
+        var beats = CreateMetricMismatchBeats();
+        var options = new BranchFindingOptions
+        {
+            UseAiSimilarity = false,
+            UseDurationSimilarityGate = false,
+            UseConfidencePenalty = false,
+            TimbreWeight = 1.0,
+            PitchWeight = 0.0,
+            LoudnessWeight = 0.0,
+            BarPositionWeight = 1.0,
+            MetricPositionMode = MetricPositionMode.Disabled,
+            MetricPositionPenaltyStrength = 0.0,
+            MetricPositionRejectionThreshold = 0.95
+        };
+
+        var matrix = SelfSimilarityMatrix.Compute(beats, options);
+
+        matrix[0, 1].Should().BeApproximately(1.0, 1e-6);
+    }
+
+    [Fact]
+    public void Compute_Should_ComposeMetricGateWithDurationAndConfidenceWithoutBoosting()
+    {
+        var beats = new[]
+        {
+            CreateBeat(0, [1f, 0f], [1f, 0f], barPosition: [1f, 0f], duration: 0.50, confidence: 0.40),
+            CreateBeat(1, [1f, 0f], [1f, 0f], barPosition: [0f, 1f], duration: 0.43, confidence: 0.80)
+        };
+        var metricOnly = SelfSimilarityMatrix.Compute(
+            beats,
+            CreateMetricOptions(MetricPositionMode.StrongPenalty, penaltyStrength: 0.32));
+        var composed = SelfSimilarityMatrix.Compute(beats, new BranchFindingOptions
+        {
+            UseAiSimilarity = false,
+            UseDurationSimilarityGate = true,
+            UseConfidencePenalty = true,
+            TimbreWeight = 1.0,
+            PitchWeight = 0.0,
+            LoudnessWeight = 0.0,
+            BarPositionWeight = 0.0,
+            MetricPositionMode = MetricPositionMode.StrongPenalty,
+            MetricPositionPenaltyStrength = 0.32,
+            MetricPositionRejectionThreshold = 0.20,
+            DurationPenaltyStartRatio = 0.90,
+            DurationRejectionRatio = 0.80,
+            DurationPenaltyStrength = 0.25,
+            ConfidencePenaltyStart = 0.50,
+            ConfidenceRejectionThreshold = 0.25,
+            ConfidencePenaltyStrength = 0.20
+        });
+
+        composed[0, 1].Should().BeLessThan(metricOnly[0, 1]);
+        composed[0, 1].Should().BeLessThanOrEqualTo(1.0);
+        composed[0, 1].Should().BeInRange(0.0, 1.0);
+    }
+
     private static Beat CreateBeat(
         int index,
         float[] timbre,
@@ -542,6 +667,35 @@ public sealed class SelfSimilarityMatrixTests
             AiRejectionThreshold = 0.58,
             AiPenaltyStartThreshold = 0.72,
             AiPenaltyStrength = 0.22
+        };
+    }
+
+    private static Beat[] CreateMetricMismatchBeats()
+    {
+        return
+        [
+            CreateBeat(0, [1f, 0f], [1f, 0f], barPosition: [1f, 0f]),
+            CreateBeat(1, [1f, 0f], [1f, 0f], barPosition: [0f, 1f])
+        ];
+    }
+
+    private static BranchFindingOptions CreateMetricOptions(
+        MetricPositionMode mode,
+        double penaltyStrength,
+        double rejectionThreshold = 0.20)
+    {
+        return new BranchFindingOptions
+        {
+            UseAiSimilarity = false,
+            UseDurationSimilarityGate = false,
+            UseConfidencePenalty = false,
+            TimbreWeight = 1.0,
+            PitchWeight = 0.0,
+            LoudnessWeight = 0.0,
+            BarPositionWeight = 0.0,
+            MetricPositionMode = mode,
+            MetricPositionPenaltyStrength = penaltyStrength,
+            MetricPositionRejectionThreshold = rejectionThreshold
         };
     }
 

@@ -101,8 +101,23 @@ public static class SelfSimilarityMatrix
                     0.0,
                     1.0);
 
-                var metricPenalty = 1.0 - (metricPenaltyStrength * (1.0 - barPosition));
-                var score = Math.Clamp(baseScore * metricPenalty, 0.0, 1.0);
+                double score;
+
+                if (options is null)
+                {
+                    var metricPenalty = 1.0 - (metricPenaltyStrength * (1.0 - barPosition));
+                    score = Math.Clamp(baseScore * metricPenalty, 0.0, 1.0);
+                }
+                else
+                {
+                    _ = MetricPositionGate.TryApply(
+                        baseScore,
+                        barPosition,
+                        options.MetricPositionMode,
+                        options.MetricPositionPenaltyStrength,
+                        options.MetricPositionRejectionThreshold,
+                        out score);
+                }
 
                 if (useAi &&
                     aiEmbeddings!.TryGetValue(beats[i].Index, out var sourceEmbedding) &&

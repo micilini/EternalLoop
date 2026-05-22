@@ -1,3 +1,5 @@
+using EternalLoop.Contracts.Enums;
+
 namespace EternalLoop.Contracts.Options;
 
 public static class TuningDefaultValues
@@ -40,6 +42,7 @@ public static class TuningDefaultValues
 
     public const double MetricPositionPenaltyStrength = 0.32;
     public const double MetricPositionRejectionThreshold = 0.20;
+    public const MetricPositionMode DefaultMetricPositionMode = MetricPositionMode.StrongPenalty;
 
     public const double TargetBranchSourceRatio = 0.16;
     public const double MaxBranchSourceRatio = 0.22;

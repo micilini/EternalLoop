@@ -50,7 +50,7 @@ public sealed class BranchFindingOptions
 
     public double ConfidencePenaltyStrength { get; init; } = TuningDefaultValues.ConfidencePenaltyStrength;
 
-    public MetricPositionMode MetricPositionMode { get; init; } = MetricPositionMode.StrongPenalty;
+    public MetricPositionMode MetricPositionMode { get; init; } = TuningDefaultValues.DefaultMetricPositionMode;
 
     public double MetricPositionPenaltyStrength { get; init; } = TuningDefaultValues.MetricPositionPenaltyStrength;
 
