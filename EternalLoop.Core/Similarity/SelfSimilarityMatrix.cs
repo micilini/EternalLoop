@@ -28,6 +28,23 @@ public static class SelfSimilarityMatrix
             null);
     }
 
+    public static double[,] Compute(
+        IReadOnlyList<Beat> beats,
+        BranchFindingOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(beats);
+        ArgumentNullException.ThrowIfNull(options);
+
+        return ComputeInternal(
+            beats,
+            options.TimbreWeight,
+            options.PitchWeight,
+            options.LoudnessWeight,
+            options.BarPositionWeight,
+            null,
+            options);
+    }
+
     public static double[,] Compute(TrackAnalysis analysis, BranchFindingOptions options)
     {
         ArgumentNullException.ThrowIfNull(analysis);
@@ -99,6 +116,29 @@ public static class SelfSimilarityMatrix
                         options.AiPenaltyStartThreshold,
                         options.AiPenaltyStrength,
                         out score);
+                }
+
+                if (options?.UseDurationSimilarityGate == true)
+                {
+                    _ = BeatDurationSimilarityGate.TryApply(
+                        score,
+                        beats[i].Duration,
+                        beats[j].Duration,
+                        options.DurationPenaltyStartRatio,
+                        options.DurationRejectionRatio,
+                        options.DurationPenaltyStrength,
+                        out score);
+                }
+
+                if (options?.UseConfidencePenalty == true)
+                {
+                    score = BeatConfidencePenalty.Apply(
+                        score,
+                        beats[i].Confidence,
+                        beats[j].Confidence,
+                        options.ConfidencePenaltyStart,
+                        options.ConfidenceRejectionThreshold,
+                        options.ConfidencePenaltyStrength);
                 }
 
                 matrix[i, j] = score;

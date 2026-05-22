@@ -397,6 +397,81 @@ public sealed class CosineSimilarityBranchFinderTests
         edges.Should().NotBeEmpty();
     }
 
+    [Fact]
+    public void FindBranches_Should_FilterDurationMismatch_WhenDurationGateEnabled()
+    {
+        var finder = new CosineSimilarityBranchFinder();
+        var beats = CreateRepeatedBeats();
+
+        beats[8] = CreateBeat(8, [1f, 0f], [1f, 0f], duration: 0.25);
+        beats[9] = CreateBeat(9, [0.8f, 0.2f], [0.7f, 0.3f], duration: 0.25);
+        beats[10] = CreateBeat(10, [0.6f, 0.4f], [0.5f, 0.5f], duration: 0.25);
+
+        var edges = finder.FindBranches(beats, new BranchFindingOptions
+        {
+            SimilarityThreshold = 0.95,
+            LookaheadDepth = 2,
+            ContinuationLookaheadDepth = 2,
+            ContinuationThresholdMargin = 0.0,
+            MinJumpDistance = 4,
+            LandingOffsetBeats = 0,
+            DurationRejectionRatio = 0.80
+        });
+
+        edges.Should().NotContain(edge => edge.FromBeat == 0 && edge.ToBeat == 8);
+    }
+
+    [Fact]
+    public void FindBranches_Should_PenalizeLowConfidence_WhenConfidencePenaltyEnabled()
+    {
+        var finder = new CosineSimilarityBranchFinder();
+        var beats = CreateRepeatedBeats();
+
+        beats[8] = CreateBeat(8, [1f, 0f], [1f, 0f], confidence: 0.10);
+        beats[9] = CreateBeat(9, [0.8f, 0.2f], [0.7f, 0.3f], confidence: 0.10);
+        beats[10] = CreateBeat(10, [0.6f, 0.4f], [0.5f, 0.5f], confidence: 0.10);
+
+        var edges = finder.FindBranches(beats, new BranchFindingOptions
+        {
+            SimilarityThreshold = 0.80,
+            LookaheadDepth = 2,
+            ContinuationLookaheadDepth = 2,
+            ContinuationThresholdMargin = 0.0,
+            MinJumpDistance = 4,
+            LandingOffsetBeats = 0,
+            ConfidencePenaltyStart = 0.50,
+            ConfidenceRejectionThreshold = 0.25,
+            ConfidencePenaltyStrength = 0.50
+        });
+
+        edges.Should().NotContain(edge => edge.FromBeat == 0 && edge.ToBeat == 8);
+    }
+
+    [Fact]
+    public void FindBranches_Should_PreservePreviousBehavior_WhenBranchQualityFiltersDisabled()
+    {
+        var finder = new CosineSimilarityBranchFinder();
+        var beats = CreateRepeatedBeats();
+
+        beats[8] = CreateBeat(8, [1f, 0f], [1f, 0f], duration: 0.25, confidence: 0.10);
+        beats[9] = CreateBeat(9, [0.8f, 0.2f], [0.7f, 0.3f], duration: 0.25, confidence: 0.10);
+        beats[10] = CreateBeat(10, [0.6f, 0.4f], [0.5f, 0.5f], duration: 0.25, confidence: 0.10);
+
+        var edges = finder.FindBranches(beats, new BranchFindingOptions
+        {
+            SimilarityThreshold = 0.95,
+            LookaheadDepth = 2,
+            ContinuationLookaheadDepth = 2,
+            ContinuationThresholdMargin = 0.0,
+            MinJumpDistance = 4,
+            LandingOffsetBeats = 0,
+            UseDurationSimilarityGate = false,
+            UseConfidencePenalty = false
+        });
+
+        edges.Should().Contain(edge => edge.FromBeat == 0 && edge.ToBeat == 8);
+    }
+
     private static Beat[] CreateRepeatedBeats(int count = 20)
     {
         var beats = Enumerable.Range(0, count)
@@ -437,14 +512,16 @@ public sealed class CosineSimilarityBranchFinderTests
         float[] timbre,
         float[] pitches,
         float[]? loudness = null,
-        float[]? barPosition = null)
+        float[]? barPosition = null,
+        double duration = 0.5,
+        double confidence = 1.0)
     {
         return new Beat
         {
             Index = index,
             Start = index * 0.5,
-            Duration = 0.5,
-            Confidence = 1.0,
+            Duration = duration,
+            Confidence = confidence,
             Timbre = timbre,
             Pitches = pitches,
             Loudness = loudness ?? [1f, 1f, 1f],

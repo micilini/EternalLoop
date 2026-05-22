@@ -67,6 +67,69 @@ public sealed class BranchFinderPipelineSmokeTests
         edges.Should().NotContain(edge => edge.FromBeat == 0 && edge.ToBeat == 8);
     }
 
+    [Fact]
+    public void F2Pipeline_Should_PenalizeDurationAndConfidenceWithoutCrashing()
+    {
+        var beatTracking = new BeatTrackingResult
+        {
+            EstimatedBpm = 120,
+            BeatTimes = Enumerable.Range(0, 16).Select(i => i * 0.5).ToArray(),
+            Confidences = Enumerable.Repeat(1.0, 16).ToArray()
+        };
+        var features = CreateRepeatedFeatureMatrix();
+        var beats = BeatFeatureAggregator.AggregateFeatures(beatTracking, features, 22_050)
+            .Select(beat => beat.Index >= 8 && beat.Index <= 10
+                ? CopyBeat(beat, duration: 0.25, confidence: 0.10)
+                : beat)
+            .ToArray();
+        var finder = new CosineSimilarityBranchFinder();
+
+        IReadOnlyList<JukeboxEdge>? edges = null;
+        var act = () => edges = finder.FindBranches(beats, new BranchFindingOptions
+        {
+            SimilarityThreshold = 0.80,
+            LookaheadDepth = 2,
+            MinJumpDistance = 6,
+            LandingOffsetBeats = 0,
+            ConfidencePenaltyStrength = 0.50
+        });
+
+        act.Should().NotThrow();
+        edges.Should().NotBeNull();
+        edges!.Should().OnlyContain(edge =>
+            double.IsFinite(edge.Similarity) &&
+            edge.Similarity >= 0.0 &&
+            edge.Similarity <= 1.0);
+    }
+
+    [Fact]
+    public void F2Pipeline_Should_StillFindBranchesForHealthyRepeatedPattern()
+    {
+        var beatTracking = new BeatTrackingResult
+        {
+            EstimatedBpm = 120,
+            BeatTimes = Enumerable.Range(0, 16).Select(i => i * 0.5).ToArray(),
+            Confidences = Enumerable.Repeat(1.0, 16).ToArray()
+        };
+        var features = CreateRepeatedFeatureMatrix();
+        var beats = BeatFeatureAggregator.AggregateFeatures(beatTracking, features, 22_050);
+        var finder = new CosineSimilarityBranchFinder();
+
+        var edges = finder.FindBranches(beats, new BranchFindingOptions
+        {
+            SimilarityThreshold = 0.9,
+            LookaheadDepth = 2,
+            MinJumpDistance = 6,
+            LandingOffsetBeats = 0
+        });
+
+        edges.Should().NotBeEmpty();
+        edges.Should().OnlyContain(edge =>
+            double.IsFinite(edge.Similarity) &&
+            edge.Similarity >= 0.0 &&
+            edge.Similarity <= 1.0);
+    }
+
     private static FeatureMatrix CreateRepeatedFeatureMatrix()
     {
         var mfcc = new float[16][];
@@ -131,6 +194,21 @@ public sealed class BranchFinderPipelineSmokeTests
                     })
                     .ToArray()
             }
+        };
+    }
+
+    private static Beat CopyBeat(Beat beat, double duration, double confidence)
+    {
+        return new Beat
+        {
+            Index = beat.Index,
+            Start = beat.Start,
+            Duration = duration,
+            Confidence = confidence,
+            Timbre = beat.Timbre,
+            Pitches = beat.Pitches,
+            Loudness = beat.Loudness,
+            BarPosition = beat.BarPosition
         };
     }
 }

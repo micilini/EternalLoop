@@ -250,7 +250,10 @@ public sealed class SelfSimilarityMatrixTests
     public void Compute_WithTrackAnalysis_Should_MatchClassic_WhenAiDisabled()
     {
         var analysis = CreateAnalysisWithAi([1.0f, 0.0f], [0.0f, 1.0f]);
-        var options = CreateOptions(useAiSimilarity: false);
+        var options = CreateOptions(
+            useAiSimilarity: false,
+            useDurationSimilarityGate: false,
+            useConfidencePenalty: false);
         var classic = SelfSimilarityMatrix.Compute(analysis.Beats, options.TimbreWeight, options.PitchWeight, options.LoudnessWeight, options.BarPositionWeight);
 
         var matrix = SelfSimilarityMatrix.Compute(analysis, options);
@@ -262,7 +265,10 @@ public sealed class SelfSimilarityMatrixTests
     public void Compute_WithTrackAnalysis_Should_MatchClassic_WhenAiDataIsMissing()
     {
         var analysis = CreateAnalysis(ai: null);
-        var options = CreateOptions(useAiSimilarity: true);
+        var options = CreateOptions(
+            useAiSimilarity: true,
+            useDurationSimilarityGate: false,
+            useConfidencePenalty: false);
         var classic = SelfSimilarityMatrix.Compute(analysis.Beats, options.TimbreWeight, options.PitchWeight, options.LoudnessWeight, options.BarPositionWeight);
 
         var matrix = SelfSimilarityMatrix.Compute(analysis, options);
@@ -368,19 +374,150 @@ public sealed class SelfSimilarityMatrixTests
         matrixA[0, 1].Should().BeApproximately(matrixB[0, 1], 1e-6);
     }
 
+    [Fact]
+    public void Compute_WithOptions_Should_MatchLegacy_WhenDurationAndConfidenceFiltersDisabled()
+    {
+        var beats = new[] { CreateBeat(0, [1f, 0f], [1f, 0f]), CreateBeat(1, [1f, 0f], [1f, 0f]) };
+        var options = CreateOptions(
+            useAiSimilarity: false,
+            useDurationSimilarityGate: false,
+            useConfidencePenalty: false);
+        var legacy = SelfSimilarityMatrix.Compute(
+            beats,
+            options.TimbreWeight,
+            options.PitchWeight,
+            options.LoudnessWeight,
+            options.BarPositionWeight);
+
+        var optionsAware = SelfSimilarityMatrix.Compute(beats, options);
+
+        optionsAware[0, 1].Should().BeApproximately(legacy[0, 1], 1e-6);
+    }
+
+    [Fact]
+    public void Compute_WithOptions_Should_PenalizeDurationMismatch()
+    {
+        var beats = new[]
+        {
+            CreateBeat(0, [1f, 0f], [1f, 0f], duration: 0.50),
+            CreateBeat(1, [1f, 0f], [1f, 0f], duration: 0.43)
+        };
+        var options = CreateOptions(useAiSimilarity: false);
+        var legacy = SelfSimilarityMatrix.Compute(beats, 1.0, 0.0, 0.0, 0.0);
+
+        var matrix = SelfSimilarityMatrix.Compute(beats, options);
+
+        matrix[0, 1].Should().BeLessThan(legacy[0, 1]);
+        matrix[0, 1].Should().BeGreaterThan(0.0);
+    }
+
+    [Fact]
+    public void Compute_WithOptions_Should_RejectDurationMismatchBelowThreshold()
+    {
+        var beats = new[]
+        {
+            CreateBeat(0, [1f, 0f], [1f, 0f], duration: 0.50),
+            CreateBeat(1, [1f, 0f], [1f, 0f], duration: 0.35)
+        };
+
+        var matrix = SelfSimilarityMatrix.Compute(beats, CreateOptions(useAiSimilarity: false));
+
+        matrix[0, 1].Should().Be(0.0);
+        matrix[1, 0].Should().Be(0.0);
+    }
+
+    [Fact]
+    public void Compute_WithOptions_Should_PenalizeLowConfidencePair()
+    {
+        var beats = new[]
+        {
+            CreateBeat(0, [1f, 0f], [1f, 0f], confidence: 0.40),
+            CreateBeat(1, [1f, 0f], [1f, 0f], confidence: 0.80)
+        };
+        var options = CreateOptions(useAiSimilarity: false);
+        var legacy = SelfSimilarityMatrix.Compute(beats, 1.0, 0.0, 0.0, 0.0);
+
+        var matrix = SelfSimilarityMatrix.Compute(beats, options);
+
+        matrix[0, 1].Should().BeLessThan(legacy[0, 1]);
+        matrix[0, 1].Should().BeGreaterThan(0.0);
+    }
+
+    [Fact]
+    public void Compute_WithOptions_Should_NeverBoostAboveLegacyScore()
+    {
+        var beats = new[] { CreateBeat(0, [1f, 0f], [1f, 0f]), CreateBeat(1, [1f, 0f], [1f, 0f]) };
+        var options = CreateOptions(useAiSimilarity: false);
+        var legacy = SelfSimilarityMatrix.Compute(beats, 1.0, 0.0, 0.0, 0.0);
+
+        var matrix = SelfSimilarityMatrix.Compute(beats, options);
+
+        matrix[0, 1].Should().BeLessThanOrEqualTo(legacy[0, 1]);
+    }
+
+    [Fact]
+    public void Compute_WithOptions_Should_NotReturnNaN_WhenDurationOrConfidenceInvalid()
+    {
+        var beats = new[]
+        {
+            CreateBeat(0, [1f, 0f], [1f, 0f], duration: double.NaN, confidence: double.NaN),
+            CreateBeat(1, [1f, 0f], [1f, 0f], duration: 0.50, confidence: 1.0)
+        };
+
+        var matrix = SelfSimilarityMatrix.Compute(beats, CreateOptions(useAiSimilarity: false));
+
+        matrix[0, 1].Should().NotBe(double.NaN);
+        matrix[0, 1].Should().BeInRange(0.0, 1.0);
+    }
+
+    [Fact]
+    public void Compute_WithTrackAnalysis_Should_ComposeAiDurationAndConfidenceWithoutBoosting()
+    {
+        var beats = new[]
+        {
+            CreateBeat(0, [1f, 0f], [1f, 0f], duration: 0.50, confidence: 0.40),
+            CreateBeat(1, [1f, 0f], [1f, 0f], duration: 0.43, confidence: 0.80)
+        };
+        var analysis = CreateAnalysis(new AiAnalysisData
+        {
+            ModelId = AiModelDefaultValues.DiscogsEffNetModelId,
+            ModelVersion = AiModelDefaultValues.DiscogsEffNetVersion,
+            SampleRate = AiModelDefaultValues.DiscogsEffNetSampleRate,
+            EmbeddingDimensions = AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions,
+            BeatEmbeddings =
+            [
+                new AiBeatEmbedding { BeatIndex = 0, Vector = [1.0f, 0.0f] },
+                new AiBeatEmbedding { BeatIndex = 1, Vector = [1.0f, 0.0f] }
+            ]
+        }, beats);
+        var options = CreateOptions(useAiSimilarity: true);
+        var withoutBranchQuality = SelfSimilarityMatrix.Compute(analysis, CreateOptions(
+            useAiSimilarity: true,
+            useDurationSimilarityGate: false,
+            useConfidencePenalty: false));
+
+        var matrix = SelfSimilarityMatrix.Compute(analysis, options);
+
+        matrix[0, 1].Should().BeLessThan(withoutBranchQuality[0, 1]);
+        matrix[0, 1].Should().BeLessThanOrEqualTo(withoutBranchQuality[0, 1]);
+        matrix[0, 1].Should().BeInRange(0.0, 1.0);
+    }
+
     private static Beat CreateBeat(
         int index,
         float[] timbre,
         float[] pitches,
         float[]? loudness = null,
-        float[]? barPosition = null)
+        float[]? barPosition = null,
+        double duration = 0.5,
+        double confidence = 1.0)
     {
         return new Beat
         {
             Index = index,
             Start = index * 0.5,
-            Duration = 0.5,
-            Confidence = 1.0,
+            Duration = duration,
+            Confidence = confidence,
             Timbre = timbre,
             Pitches = pitches,
             Loudness = loudness ?? [0f, 0f, 0f],
@@ -388,11 +525,16 @@ public sealed class SelfSimilarityMatrixTests
         };
     }
 
-    private static BranchFindingOptions CreateOptions(bool useAiSimilarity)
+    private static BranchFindingOptions CreateOptions(
+        bool useAiSimilarity,
+        bool useDurationSimilarityGate = true,
+        bool useConfidencePenalty = true)
     {
         return new BranchFindingOptions
         {
             UseAiSimilarity = useAiSimilarity,
+            UseDurationSimilarityGate = useDurationSimilarityGate,
+            UseConfidencePenalty = useConfidencePenalty,
             TimbreWeight = 1.0,
             PitchWeight = 0.0,
             LoudnessWeight = 0.0,

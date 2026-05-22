@@ -19,12 +19,7 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
         ArgumentNullException.ThrowIfNull(beats);
         ArgumentNullException.ThrowIfNull(options);
 
-        var matrix = SelfSimilarityMatrix.Compute(
-            beats,
-            options.TimbreWeight,
-            options.PitchWeight,
-            options.LoudnessWeight,
-            options.BarPositionWeight);
+        var matrix = SelfSimilarityMatrix.Compute(beats, options);
 
         return FindBranchesCore(beats, options, matrix, isAiActiveForThisAnalysis: false);
     }
