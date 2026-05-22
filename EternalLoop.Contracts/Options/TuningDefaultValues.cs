@@ -28,6 +28,28 @@ public static class TuningDefaultValues
     public const int AiBeatContextBefore = 1;
     public const int AiBeatContextAfter = 2;
 
+    public const bool UseDurationSimilarityGate = true;
+    public const double DurationPenaltyStartRatio = 0.90;
+    public const double DurationRejectionRatio = 0.80;
+    public const double DurationPenaltyStrength = 0.25;
+
+    public const bool UseConfidencePenalty = true;
+    public const double ConfidencePenaltyStart = 0.50;
+    public const double ConfidenceRejectionThreshold = 0.25;
+    public const double ConfidencePenaltyStrength = 0.20;
+
+    public const double MetricPositionPenaltyStrength = 0.32;
+    public const double MetricPositionRejectionThreshold = 0.20;
+
+    public const double TargetBranchSourceRatio = 0.16;
+    public const double MaxBranchSourceRatio = 0.22;
+
+    public const bool UseMicrosegmentSimilarity = true;
+    public const int MicrosegmentCount = 4;
+    public const double MicrosegmentPenaltyStartThreshold = 0.82;
+    public const double MicrosegmentRejectionThreshold = 0.70;
+    public const double MicrosegmentPenaltyStrength = 0.25;
+
     public const int MinLookaheadDepth = 1;
     public const int MaxLookaheadDepth = 8;
     public const int MinJumpDistanceLimit = 1;
@@ -40,6 +62,8 @@ public static class TuningDefaultValues
     public const double MaxRatio = 0.95;
     public const double MinProbability = 0.0;
     public const double MaxProbability = 1.0;
+    public const int MinMicrosegmentCount = 1;
+    public const int MaxMicrosegmentCount = 8;
 
     public const int MinBeatsBeforeFirstJump = 16;
     public const int SteeringLookaheadDepth = 5;

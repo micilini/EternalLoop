@@ -1,3 +1,4 @@
+using EternalLoop.Contracts.Enums;
 using EternalLoop.Contracts.Models;
 using EternalLoop.Contracts.Options;
 using FluentAssertions;
@@ -35,6 +36,88 @@ public sealed class TuningOptionsMapperTests
         options.AiRejectionThreshold.Should().Be(0.58);
         options.AiPenaltyStartThreshold.Should().Be(0.72);
         options.AiPenaltyStrength.Should().Be(0.22);
+        options.UseDurationSimilarityGate.Should().BeTrue();
+        options.DurationPenaltyStartRatio.Should().Be(0.90);
+        options.DurationRejectionRatio.Should().Be(0.80);
+        options.DurationPenaltyStrength.Should().Be(0.25);
+        options.UseConfidencePenalty.Should().BeTrue();
+        options.ConfidencePenaltyStart.Should().Be(0.50);
+        options.ConfidenceRejectionThreshold.Should().Be(0.25);
+        options.ConfidencePenaltyStrength.Should().Be(0.20);
+        options.MetricPositionMode.Should().Be(MetricPositionMode.StrongPenalty);
+        options.MetricPositionPenaltyStrength.Should().Be(0.32);
+        options.MetricPositionRejectionThreshold.Should().Be(0.20);
+        options.TargetBranchSourceRatio.Should().Be(0.16);
+        options.MaxBranchSourceRatio.Should().Be(0.22);
+        options.UseMicrosegmentSimilarity.Should().BeTrue();
+        options.MicrosegmentCount.Should().Be(4);
+        options.MicrosegmentPenaltyStartThreshold.Should().Be(0.82);
+        options.MicrosegmentRejectionThreshold.Should().Be(0.70);
+        options.MicrosegmentPenaltyStrength.Should().Be(0.25);
+    }
+
+    [Fact]
+    public void ToBranchFindingOptions_Should_Map_BranchQualityOptions_FromBalancedPreset()
+    {
+        var settings = new UserSettings
+        {
+            Preset = TuningPresetCatalog.BalancedId
+        };
+
+        var options = TuningOptionsMapper.ToBranchFindingOptions(settings);
+
+        options.MetricPositionMode.Should().Be(MetricPositionMode.StrongPenalty);
+        options.DurationPenaltyStartRatio.Should().Be(0.90);
+        options.TargetBranchSourceRatio.Should().Be(0.16);
+        options.MicrosegmentPenaltyStrength.Should().Be(0.25);
+    }
+
+    [Fact]
+    public void ToBranchFindingOptions_Should_Map_BranchQualityOptions_FromConservativePreset()
+    {
+        var settings = new UserSettings
+        {
+            Preset = TuningPresetCatalog.ConservativeId
+        };
+
+        var options = TuningOptionsMapper.ToBranchFindingOptions(settings);
+
+        options.MetricPositionMode.Should().Be(MetricPositionMode.StrictGate);
+        options.DurationPenaltyStartRatio.Should().Be(0.94);
+        options.TargetBranchSourceRatio.Should().Be(0.10);
+        options.MicrosegmentPenaltyStrength.Should().Be(0.35);
+    }
+
+    [Fact]
+    public void ToBranchFindingOptions_Should_Map_BranchQualityOptions_FromWildPreset()
+    {
+        var settings = new UserSettings
+        {
+            Preset = TuningPresetCatalog.WildId
+        };
+
+        var options = TuningOptionsMapper.ToBranchFindingOptions(settings);
+
+        options.MetricPositionMode.Should().Be(MetricPositionMode.SoftPenalty);
+        options.DurationPenaltyStartRatio.Should().Be(0.84);
+        options.TargetBranchSourceRatio.Should().Be(0.25);
+        options.MicrosegmentPenaltyStrength.Should().Be(0.16);
+    }
+
+    [Fact]
+    public void ToBranchFindingOptions_Should_FallbackBranchQualityOptions_ToBalanced_WhenPresetIsUnknown()
+    {
+        var settings = new UserSettings
+        {
+            Preset = "Unknown"
+        };
+
+        var options = TuningOptionsMapper.ToBranchFindingOptions(settings);
+
+        options.MetricPositionMode.Should().Be(MetricPositionMode.StrongPenalty);
+        options.DurationPenaltyStartRatio.Should().Be(0.90);
+        options.TargetBranchSourceRatio.Should().Be(0.16);
+        options.MicrosegmentPenaltyStrength.Should().Be(0.25);
     }
 
     [Fact]

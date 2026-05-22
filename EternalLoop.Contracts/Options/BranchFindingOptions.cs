@@ -1,3 +1,5 @@
+using EternalLoop.Contracts.Enums;
+
 namespace EternalLoop.Contracts.Options;
 
 public sealed class BranchFindingOptions
@@ -31,4 +33,40 @@ public sealed class BranchFindingOptions
     public double AiPenaltyStartThreshold { get; init; } = TuningDefaultValues.AiPenaltyStartThreshold;
 
     public double AiPenaltyStrength { get; init; } = TuningDefaultValues.AiPenaltyStrength;
+
+    public bool UseDurationSimilarityGate { get; init; } = TuningDefaultValues.UseDurationSimilarityGate;
+
+    public double DurationPenaltyStartRatio { get; init; } = TuningDefaultValues.DurationPenaltyStartRatio;
+
+    public double DurationRejectionRatio { get; init; } = TuningDefaultValues.DurationRejectionRatio;
+
+    public double DurationPenaltyStrength { get; init; } = TuningDefaultValues.DurationPenaltyStrength;
+
+    public bool UseConfidencePenalty { get; init; } = TuningDefaultValues.UseConfidencePenalty;
+
+    public double ConfidencePenaltyStart { get; init; } = TuningDefaultValues.ConfidencePenaltyStart;
+
+    public double ConfidenceRejectionThreshold { get; init; } = TuningDefaultValues.ConfidenceRejectionThreshold;
+
+    public double ConfidencePenaltyStrength { get; init; } = TuningDefaultValues.ConfidencePenaltyStrength;
+
+    public MetricPositionMode MetricPositionMode { get; init; } = MetricPositionMode.StrongPenalty;
+
+    public double MetricPositionPenaltyStrength { get; init; } = TuningDefaultValues.MetricPositionPenaltyStrength;
+
+    public double MetricPositionRejectionThreshold { get; init; } = TuningDefaultValues.MetricPositionRejectionThreshold;
+
+    public double TargetBranchSourceRatio { get; init; } = TuningDefaultValues.TargetBranchSourceRatio;
+
+    public double MaxBranchSourceRatio { get; init; } = TuningDefaultValues.MaxBranchSourceRatio;
+
+    public bool UseMicrosegmentSimilarity { get; init; } = TuningDefaultValues.UseMicrosegmentSimilarity;
+
+    public int MicrosegmentCount { get; init; } = TuningDefaultValues.MicrosegmentCount;
+
+    public double MicrosegmentPenaltyStartThreshold { get; init; } = TuningDefaultValues.MicrosegmentPenaltyStartThreshold;
+
+    public double MicrosegmentRejectionThreshold { get; init; } = TuningDefaultValues.MicrosegmentRejectionThreshold;
+
+    public double MicrosegmentPenaltyStrength { get; init; } = TuningDefaultValues.MicrosegmentPenaltyStrength;
 }

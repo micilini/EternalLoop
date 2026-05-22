@@ -50,6 +50,24 @@ public sealed class OptionsContractTests
         options.AiRejectionThreshold.Should().Be(0.58);
         options.AiPenaltyStartThreshold.Should().Be(0.72);
         options.AiPenaltyStrength.Should().Be(0.22);
+        options.UseDurationSimilarityGate.Should().BeTrue();
+        options.DurationPenaltyStartRatio.Should().Be(0.90);
+        options.DurationRejectionRatio.Should().Be(0.80);
+        options.DurationPenaltyStrength.Should().Be(0.25);
+        options.UseConfidencePenalty.Should().BeTrue();
+        options.ConfidencePenaltyStart.Should().Be(0.50);
+        options.ConfidenceRejectionThreshold.Should().Be(0.25);
+        options.ConfidencePenaltyStrength.Should().Be(0.20);
+        options.MetricPositionMode.Should().Be(MetricPositionMode.StrongPenalty);
+        options.MetricPositionPenaltyStrength.Should().Be(0.32);
+        options.MetricPositionRejectionThreshold.Should().Be(0.20);
+        options.TargetBranchSourceRatio.Should().Be(0.16);
+        options.MaxBranchSourceRatio.Should().Be(0.22);
+        options.UseMicrosegmentSimilarity.Should().BeTrue();
+        options.MicrosegmentCount.Should().Be(4);
+        options.MicrosegmentPenaltyStartThreshold.Should().Be(0.82);
+        options.MicrosegmentRejectionThreshold.Should().Be(0.70);
+        options.MicrosegmentPenaltyStrength.Should().Be(0.25);
     }
 
     [Fact]
