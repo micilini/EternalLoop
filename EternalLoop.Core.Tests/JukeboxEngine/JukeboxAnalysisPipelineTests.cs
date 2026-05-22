@@ -3,6 +3,7 @@ using EternalLoop.Contracts.Enums;
 using EternalLoop.Contracts.Models;
 using EternalLoop.Contracts.Options;
 using EternalLoop.Core.AI;
+using EternalLoop.Core.Diagnostics;
 using EternalLoop.Core.JukeboxEngine;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -11,6 +12,8 @@ namespace EternalLoop.Core.Tests.JukeboxEngine;
 
 public sealed class JukeboxAnalysisPipelineTests
 {
+    private static readonly string DiagnosticsRoot = Path.Combine(Path.GetTempPath(), "EternalLoopPipelineDiagnostics", Guid.NewGuid().ToString("N"));
+
     [Fact]
     public async Task AnalyzeAsync_Loads_Audio_Extracts_Features_Tracks_Beats_And_Builds_Graph()
     {
@@ -364,6 +367,30 @@ public sealed class JukeboxAnalysisPipelineTests
     }
 
     [Fact]
+    public async Task AnalysisPipeline_writes_ai_failure_diagnostic_when_ai_falls_back()
+    {
+        var aiExtractor = new FakeAiEmbeddingExtractor
+        {
+            ThrowNestedIndexException = true
+        };
+        var pipeline = CreatePipeline(aiEmbeddingExtractor: aiExtractor);
+
+        var result = await pipeline.AnalyzeAsync("test.wav", new RecordingProgressReporter(), CancellationToken.None);
+
+        result.AiRun.Status.Should().Be(AiAnalysisRunStatus.FailedFallback);
+        result.AiRun.DiagnosticFilePath.Should().NotBeNullOrWhiteSpace();
+        File.Exists(result.AiRun.DiagnosticFilePath).Should().BeTrue();
+        var text = File.ReadAllText(result.AiRun.DiagnosticFilePath!);
+        text.Should().Contain(nameof(IndexOutOfRangeException));
+        text.Should().Contain("Synthetic pipeline AI index failure.");
+        text.Should().Contain(nameof(ThrowNestedException));
+        text.Should().Contain("Exception.ToString()");
+        result.Analysis.Ai.Should().BeNull();
+        result.Graph.Should().NotBeNull();
+    }
+
+
+    [Fact]
     public async Task AnalyzeAsync_SavesAnalysis_WhenCacheMisses()
     {
         var cache = new FakeTrackAnalysisCache();
@@ -489,7 +516,15 @@ public sealed class JukeboxAnalysisPipelineTests
             cache ?? new FakeTrackAnalysisCache(),
             aiEmbeddingExtractor ?? new FakeAiEmbeddingExtractor(),
             new AiBeatEmbeddingAggregator(),
+            CreateDiagnosticWriter(),
             NullLogger<JukeboxAnalysisPipeline>.Instance);
+    }
+
+    private static AiFailureDiagnosticWriter CreateDiagnosticWriter()
+    {
+        return new AiFailureDiagnosticWriter(
+            new FakeAppPathProvider(DiagnosticsRoot),
+            NullLogger<AiFailureDiagnosticWriter>.Instance);
     }
 
     private static Beat[] CreateBeats()
@@ -725,12 +760,19 @@ public sealed class JukeboxAnalysisPipelineTests
 
         public Exception? ExceptionToThrow { get; init; }
 
+        public bool ThrowNestedIndexException { get; init; }
+
         public Task<AiEmbeddingExtractionResult> ExtractAsync(
             LoadedAudio audio,
             IAnalysisProgressReporter progressReporter,
             CancellationToken cancellationToken)
         {
             CallCount++;
+
+            if (ThrowNestedIndexException)
+            {
+                ThrowNestedException();
+            }
 
             if (ExceptionToThrow is not null)
             {
@@ -769,6 +811,37 @@ public sealed class JukeboxAnalysisPipelineTests
         var vector = new float[AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions];
         vector[0] = value;
         return vector;
+    }
+
+    private static void ThrowNestedException()
+    {
+        throw new IndexOutOfRangeException("Synthetic pipeline AI index failure.");
+    }
+
+    private sealed class FakeAppPathProvider : IAppPathProvider
+    {
+        public FakeAppPathProvider(string root)
+        {
+            AppDataDirectory = root;
+            CacheDirectory = Path.Combine(root, "Cache");
+            LogsDirectory = Path.Combine(root, "Logs");
+            SettingsFilePath = Path.Combine(root, "settings.json");
+        }
+
+        public string AppDataDirectory { get; }
+
+        public string CacheDirectory { get; }
+
+        public string LogsDirectory { get; }
+
+        public string SettingsFilePath { get; }
+
+        public void EnsureDirectories()
+        {
+            Directory.CreateDirectory(AppDataDirectory);
+            Directory.CreateDirectory(CacheDirectory);
+            Directory.CreateDirectory(LogsDirectory);
+        }
     }
 
     private sealed class RecordingProgressReporter : IAnalysisProgressReporter

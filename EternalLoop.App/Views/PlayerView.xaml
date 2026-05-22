@@ -180,6 +180,20 @@
                                            TextWrapping="Wrap"
                                            Margin="0 6 0 0"
                                            Visibility="{Binding IsAiAnalysisWarningVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                <TextBlock Text="{Binding AiDiagnosticFilePathText}"
+                                           Style="{StaticResource EL.Text.Caption}"
+                                           TextWrapping="Wrap"
+                                           Margin="0 6 0 0"
+                                           Visibility="{Binding IsAiDiagnosticVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                <Button Content="Copy AI diagnostics"
+                                        Command="{Binding CopyAiDiagnosticsCommand}"
+                                        Style="{StaticResource EL.Button.Secondary}"
+                                        Height="30"
+                                        MinWidth="0"
+                                        Padding="10 0"
+                                        FontSize="12"
+                                        Margin="0 8 0 0"
+                                        Visibility="{Binding IsAiDiagnosticVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
                             </StackPanel>
                         </Border>
                         <TextBlock Text="{Binding AnalyzeAgainStatusText}"

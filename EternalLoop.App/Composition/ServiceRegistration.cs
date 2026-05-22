@@ -8,6 +8,7 @@ using EternalLoop.Core.AI;
 using EternalLoop.Core.Analysis;
 using EternalLoop.Core.Audio;
 using EternalLoop.Core.BeatTracking;
+using EternalLoop.Core.Diagnostics;
 using EternalLoop.Core.JukeboxEngine;
 using EternalLoop.Core.Playback;
 using EternalLoop.Core.Persistence;
@@ -40,6 +41,7 @@ internal static class ServiceRegistration
         services.AddSingleton<AiPatchBatcher>();
         services.AddSingleton<IAiEmbeddingExtractor, AiEmbeddingExtractor>();
         services.AddSingleton<AiBeatEmbeddingAggregator>();
+        services.AddSingleton<AiFailureDiagnosticWriter>();
 
         services.AddSingleton<MainWindow>();
         services.AddSingleton<MainWindowViewModel>();

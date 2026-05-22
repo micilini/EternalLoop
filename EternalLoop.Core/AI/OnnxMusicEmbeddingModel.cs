@@ -185,19 +185,37 @@ public sealed class OnnxMusicEmbeddingModel : ILocalMusicEmbeddingModel
     {
         var tensor = new DenseTensor<float>([BatchSize, MelBands, PatchFrames]);
 
-        for (var batchIndex = 0; batchIndex < BatchSize; batchIndex++)
+        try
         {
-            var sourcePatch = patches[Math.Min(batchIndex, patches.Count - 1)];
-            for (var melBandIndex = 0; melBandIndex < MelBands; melBandIndex++)
+            for (var batchIndex = 0; batchIndex < BatchSize; batchIndex++)
             {
-                for (var frameIndex = 0; frameIndex < PatchFrames; frameIndex++)
+                var sourcePatch = patches[Math.Min(batchIndex, patches.Count - 1)];
+                for (var melBandIndex = 0; melBandIndex < MelBands; melBandIndex++)
                 {
-                    tensor[batchIndex, melBandIndex, frameIndex] = sourcePatch[melBandIndex][frameIndex];
+                    for (var frameIndex = 0; frameIndex < PatchFrames; frameIndex++)
+                    {
+                        tensor[batchIndex, melBandIndex, frameIndex] = sourcePatch[melBandIndex][frameIndex];
+                    }
                 }
             }
         }
+        catch (Exception ex) when (ex is IndexOutOfRangeException or ArgumentOutOfRangeException)
+        {
+            throw new OnnxInferenceException(BuildInputTensorFailureMessage(patches, tensor), ex);
+        }
 
         return tensor;
+    }
+
+    private string BuildInputTensorFailureMessage(IReadOnlyList<float[][]> patches, DenseTensor<float> tensor)
+    {
+        var firstPatchMelBands = patches.Count > 0 ? patches[0].Length : 0;
+        var firstPatchFrames = firstPatchMelBands > 0 ? patches[0][0].Length : 0;
+
+        return $"Failed to create ONNX input tensor for model '{ModelId}'. "
+            + $"PatchCount='{patches.Count}', BatchSize='{BatchSize}', MelBands='{MelBands}', PatchFrames='{PatchFrames}', "
+            + $"TensorDimensions='{string.Join("x", tensor.Dimensions.ToArray())}', "
+            + $"FirstPatchMelBands='{firstPatchMelBands}', FirstPatchFrames='{firstPatchFrames}'.";
     }
 
     private void ValidateOutputTensor(Tensor<float> outputTensor)
@@ -233,25 +251,34 @@ public sealed class OnnxMusicEmbeddingModel : ILocalMusicEmbeddingModel
             throw new OnnxInferenceException($"ONNX model '{ModelId}' output '{_manifest.EmbeddingOutputName}' must have '{EmbeddingDimensions}' embedding dimensions but had '{outputEmbeddingDimensions}'.");
         }
 
-        var outputValues = outputTensor.ToArray();
-        var expectedValueCount = outputBatchSize * outputEmbeddingDimensions;
-
-        if (outputValues.Length < expectedValueCount)
+        try
         {
-            throw new OnnxInferenceException($"ONNX model '{ModelId}' output '{_manifest.EmbeddingOutputName}' contains '{outputValues.Length}' values but expected at least '{expectedValueCount}'.");
+            var outputValues = outputTensor.ToArray();
+            var expectedValueCount = outputBatchSize * outputEmbeddingDimensions;
+
+            if (outputValues.Length < expectedValueCount)
+            {
+                throw new OnnxInferenceException($"ONNX model '{ModelId}' output '{_manifest.EmbeddingOutputName}' contains '{outputValues.Length}' values but expected at least '{expectedValueCount}'.");
+            }
+
+            var embeddings = new List<float[]>(realPatchCount);
+
+            for (var patchIndex = 0; patchIndex < realPatchCount; patchIndex++)
+            {
+                var embedding = new float[EmbeddingDimensions];
+                var offset = patchIndex * EmbeddingDimensions;
+                Array.Copy(outputValues, offset, embedding, 0, EmbeddingDimensions);
+
+                embeddings.Add(embedding);
+            }
+
+            return embeddings;
         }
-
-        var embeddings = new List<float[]>(realPatchCount);
-
-        for (var patchIndex = 0; patchIndex < realPatchCount; patchIndex++)
+        catch (Exception ex) when (ex is IndexOutOfRangeException or ArgumentOutOfRangeException)
         {
-            var embedding = new float[EmbeddingDimensions];
-            var offset = patchIndex * EmbeddingDimensions;
-            Array.Copy(outputValues, offset, embedding, 0, EmbeddingDimensions);
-
-            embeddings.Add(embedding);
+            throw new OnnxInferenceException(
+                $"Failed to read ONNX embeddings for model '{ModelId}'. RealPatchCount='{realPatchCount}', EmbeddingDimensions='{EmbeddingDimensions}', OutputDimensions='{string.Join("x", outputTensor.Dimensions.ToArray())}'.",
+                ex);
         }
-
-        return embeddings;
     }
 }

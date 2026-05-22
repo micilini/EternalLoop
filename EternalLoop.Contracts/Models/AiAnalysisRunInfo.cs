@@ -28,11 +28,13 @@ public sealed class AiAnalysisRunInfo
 
     public string? FailureReason { get; init; }
 
+    public string? DiagnosticFilePath { get; init; }
+
     public bool UsedAi => Status is AiAnalysisRunStatus.Completed or AiAnalysisRunStatus.LoadedFromCache;
 
     public bool FellBackToClassic => Status == AiAnalysisRunStatus.FailedFallback;
 
-    public static AiAnalysisRunInfo FailedFallback(string failureReason)
+    public static AiAnalysisRunInfo FailedFallback(string failureReason, string? diagnosticFilePath = null)
     {
         if (string.IsNullOrWhiteSpace(failureReason))
         {
@@ -43,7 +45,8 @@ public sealed class AiAnalysisRunInfo
         {
             Status = AiAnalysisRunStatus.FailedFallback,
             Message = "AI similarity failed. Using classic analysis.",
-            FailureReason = failureReason
+            FailureReason = failureReason,
+            DiagnosticFilePath = diagnosticFilePath
         };
     }
 }

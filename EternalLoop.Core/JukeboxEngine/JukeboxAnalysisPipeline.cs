@@ -4,6 +4,7 @@ using EternalLoop.Contracts.Models;
 using EternalLoop.Contracts.Options;
 using EternalLoop.Core.AI;
 using EternalLoop.Core.BeatTracking;
+using EternalLoop.Core.Diagnostics;
 using EternalLoop.Core.Similarity;
 using Microsoft.Extensions.Logging;
 
@@ -22,6 +23,7 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
     private readonly ITrackAnalysisCache _cache;
     private readonly IAiEmbeddingExtractor _aiEmbeddingExtractor;
     private readonly AiBeatEmbeddingAggregator _aiBeatEmbeddingAggregator;
+    private readonly AiFailureDiagnosticWriter _aiFailureDiagnosticWriter;
     private readonly ILogger<JukeboxAnalysisPipeline> _logger;
 
     public JukeboxAnalysisPipeline(
@@ -32,6 +34,7 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
         ITrackAnalysisCache cache,
         IAiEmbeddingExtractor aiEmbeddingExtractor,
         AiBeatEmbeddingAggregator aiBeatEmbeddingAggregator,
+        AiFailureDiagnosticWriter aiFailureDiagnosticWriter,
         ILogger<JukeboxAnalysisPipeline> logger)
     {
         _audioLoader = audioLoader ?? throw new ArgumentNullException(nameof(audioLoader));
@@ -41,6 +44,7 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         _aiEmbeddingExtractor = aiEmbeddingExtractor ?? throw new ArgumentNullException(nameof(aiEmbeddingExtractor));
         _aiBeatEmbeddingAggregator = aiBeatEmbeddingAggregator ?? throw new ArgumentNullException(nameof(aiBeatEmbeddingAggregator));
+        _aiFailureDiagnosticWriter = aiFailureDiagnosticWriter ?? throw new ArgumentNullException(nameof(aiFailureDiagnosticWriter));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -148,6 +152,7 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
         cancellationToken.ThrowIfCancellationRequested();
 
         var aiResult = await ExtractAiDataAsync(
+            filePath,
             audio,
             progressReporter,
             effectiveBranchOptions,
@@ -221,6 +226,7 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
     }
 
     private async Task<AiExtractionPipelineResult> ExtractAiDataAsync(
+        string filePath,
         LoadedAudio audio,
         IAnalysisProgressReporter progressReporter,
         BranchFindingOptions branchOptions,
@@ -263,13 +269,40 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
         }
         catch (Exception ex) when (IsRecoverableAiException(ex))
         {
-            _logger.LogWarning(ex, "Local AI similarity failed; continuing with classic analysis");
+            var diagnosticFilePath = TryWriteAiFailureDiagnostic(filePath, audio, beats, branchOptions, ex);
+            _logger.LogWarning(
+                ex,
+                "Local AI similarity failed; continuing with classic analysis. DiagnosticFilePath: {DiagnosticFilePath}. Full exception: {ExceptionText}",
+                diagnosticFilePath,
+                ex.ToString());
             progressReporter.Report(AnalysisStage.RunningAi, 1.0, "AI similarity failed. Using classic analysis.");
             return new AiExtractionPipelineResult
             {
                 Data = null,
-                RunInfo = AiAnalysisRunInfo.FailedFallback(SanitizeAiFailureReason(ex))
+                RunInfo = AiAnalysisRunInfo.FailedFallback(SanitizeAiFailureReason(ex), diagnosticFilePath)
             };
+        }
+    }
+
+    private string? TryWriteAiFailureDiagnostic(
+        string filePath,
+        LoadedAudio audio,
+        IReadOnlyList<Beat> beats,
+        BranchFindingOptions branchOptions,
+        Exception exception)
+    {
+        try
+        {
+            return _aiFailureDiagnosticWriter.Write(filePath, audio, beats, branchOptions, exception);
+        }
+        catch (Exception diagnosticException)
+        {
+            _logger.LogError(
+                diagnosticException,
+                "Failed to write AI failure diagnostic report. Original AI exception: {OriginalException}",
+                exception.ToString());
+
+            return null;
         }
     }
 

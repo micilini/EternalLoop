@@ -53,6 +53,9 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string aiAnalysisDetailText = "AI status unavailable.";
     [ObservableProperty] private string? aiAnalysisWarningText;
     [ObservableProperty] private bool isAiAnalysisWarningVisible;
+    [ObservableProperty] private string? aiDiagnosticFilePath;
+    [ObservableProperty] private string aiDiagnosticFilePathText = string.Empty;
+    [ObservableProperty] private bool isAiDiagnosticVisible;
     [ObservableProperty] private ObservableCollection<LoopBranchPreview> branchPreviews = new();
 
     public PlayerViewModel(
@@ -154,6 +157,19 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
 
         _sessionState.RequestReanalysis(filePath);
         _navigationService.NavigateTo<AnalysisViewModel>();
+    }
+
+    [RelayCommand]
+    private void CopyAiDiagnostics()
+    {
+        if (string.IsNullOrWhiteSpace(AiDiagnosticFilePath) || !File.Exists(AiDiagnosticFilePath))
+        {
+            AnalyzeAgainStatusText = "AI diagnostics file was not found.";
+            return;
+        }
+
+        Clipboard.SetText(File.ReadAllText(AiDiagnosticFilePath));
+        AnalyzeAgainStatusText = "AI diagnostics copied to clipboard.";
     }
 
     [RelayCommand]
@@ -311,6 +327,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
                 AiAnalysisDetailText = "Local AI similarity was used for this analysis.";
                 AiAnalysisWarningText = null;
                 IsAiAnalysisWarningVisible = false;
+                ClearAiDiagnostics();
                 break;
 
             case AiAnalysisRunStatus.LoadedFromCache:
@@ -318,6 +335,7 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
                 AiAnalysisDetailText = "Local AI similarity was loaded from the saved analysis.";
                 AiAnalysisWarningText = null;
                 IsAiAnalysisWarningVisible = false;
+                ClearAiDiagnostics();
                 break;
 
             case AiAnalysisRunStatus.FailedFallback:
@@ -327,6 +345,11 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
                     ? "AI failed for this track. Playback is using classic analysis."
                     : $"AI failed for this track: {run.FailureReason}";
                 IsAiAnalysisWarningVisible = true;
+                AiDiagnosticFilePath = run.DiagnosticFilePath;
+                IsAiDiagnosticVisible = !string.IsNullOrWhiteSpace(run.DiagnosticFilePath);
+                AiDiagnosticFilePathText = IsAiDiagnosticVisible
+                    ? $"Diagnostics: {run.DiagnosticFilePath}"
+                    : string.Empty;
                 break;
 
             case AiAnalysisRunStatus.Disabled:
@@ -335,8 +358,16 @@ public partial class PlayerViewModel : ObservableObject, IDisposable
                 AiAnalysisDetailText = "Local AI similarity is disabled. This track is using classic analysis.";
                 AiAnalysisWarningText = null;
                 IsAiAnalysisWarningVisible = false;
+                ClearAiDiagnostics();
                 break;
         }
+    }
+
+    private void ClearAiDiagnostics()
+    {
+        AiDiagnosticFilePath = null;
+        AiDiagnosticFilePathText = string.Empty;
+        IsAiDiagnosticVisible = false;
     }
 
     public void Dispose()
