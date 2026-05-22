@@ -26,7 +26,7 @@
 
 ---
 
-> EternalLoop is a Windows-native infinite music player that analyzes local audio files, detects beats, builds musical branch points, and keeps playback looping without relying any kind of external API.
+> EternalLoop is a Windows-native infinite music player that analyzes local audio files, detects beats, builds musical branch points, and keeps playback looping without relying on any kind of external API.
 
 ---
 
@@ -174,7 +174,7 @@ If the analysis model changes between versions, old cache entries can be ignored
 
 ## Local AI Model Assets
 
-EternalLoop V1.1.0 prepares a local AI similarity mode based on the Discogs-EffNet ONNX model.
+EternalLoop V1.1.0 includes a local AI similarity mode based on the Discogs-EffNet ONNX model.
 
 The app source code remains MIT licensed. The model files are third-party assets and are governed by their own license notice inside:
 
@@ -273,7 +273,7 @@ The project is split into three main assemblies:
 - Microsoft.Extensions.Hosting
 - Microsoft.Extensions.DependencyInjection
 - Microsoft.Extensions.Logging
-- Local AI model packaging preparation for ONNX-based similarity analysis.
+- ONNX Runtime CPU for local AI similarity analysis.
 
 ## How to Run Locally
 
@@ -309,7 +309,7 @@ Run the automated test suite with:
 dotnet test .\EternalLoop.slnx --configuration Debug
 ```
 
-The test suite covers audio format detection, feature extraction, beat tracking, similarity scoring, branch finding, graph traversal, playback components, cache persistence, settings persistence, and contract defaults.
+The test suite covers audio format detection, feature extraction, beat tracking, similarity scoring, branch finding, graph traversal, playback components, cache persistence, settings persistence, contract defaults, local AI preprocessing, ONNX inference, AI fallback behavior, and release readiness checks.
 
 ## Release Build
 
@@ -368,6 +368,28 @@ After publishing, test the generated executable before packaging:
 
 ## Version History
 
+### Version 1.1.0
+
+Local AI Similarity Mode release.
+
+This version adds a local AI-assisted music similarity layer powered by ONNX Runtime CPU and the bundled Discogs-EffNet model. EternalLoop now extracts local audio embeddings, aggregates them at beat level, caches AI analysis data, and uses AI only as a gate/penalty layer to reduce weak musical branches without replacing the classic DSP pipeline.
+
+Highlights:
+
+- Added Local AI Similarity Mode.
+- Added ONNX Runtime CPU integration.
+- Added bundled Discogs-EffNet model support.
+- Added AI audio preprocessing with 16 kHz resampling, mel spectrogram generation, patch extraction, and batch inference.
+- Added AI embedding extraction and beat-level aggregation.
+- Added AI-aware cache support to avoid recalculating embeddings.
+- Added hybrid branch scoring where AI can reject or penalize weak branches, but never boost scores.
+- Added Settings toggle to enable or disable local AI similarity.
+- Added AI analysis progress indicators and status messages.
+- Added AI fallback handling, diagnostics, and visibility when a track falls back to classic analysis.
+- Added release validation checks for model assets, publish output, CPU-only runtime, and third-party notices.
+- Preserved the classic branch finder as the base analysis pipeline.
+- Preserved offline-first behavior with local-only analysis.
+
 ### Version 1.0.0
 
 Initial public release of EternalLoop.
@@ -378,7 +400,6 @@ This version introduces local infinite music playback with beat tracking, featur
 
 Future versions may explore:
 
-- Optional local AI embedding mode.
 - Smarter section detection.
 - Additional visualization modes.
 - More tuning presets.
@@ -403,3 +424,5 @@ You can open issues for bugs, improvements, documentation updates, audio-analysi
 This project source code is open-source and available under the MIT License.
 
 Third-party model assets are not covered by the EternalLoop MIT source license. See the model-specific notice in `EternalLoop.App/Assets/Models/DiscogsEffNet/MODEL-LICENSE-NOTICE.txt` before distributing builds that include AI assets.
+
+The MIT license applies to the EternalLoop source code only. Bundled third-party AI model assets are governed by their own license notice.
