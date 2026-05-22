@@ -505,6 +505,80 @@ public sealed class SelfSimilarityMatrixTests
     }
 
     [Fact]
+    public void Compute_WithTrackAnalysis_Should_PenalizeMicrosegmentMismatch_WhenEnabled()
+    {
+        var analysis = CreateAnalysisWithMicroFingerprints(
+            CreateMicroFingerprint(0, [1f, 1f, 1f, 1f]),
+            CreateMicroFingerprint(1, [1f, 1f, -1f, 1f]));
+        var options = CreateMicroOptions();
+
+        var matrix = SelfSimilarityMatrix.Compute(analysis, options);
+
+        matrix[0, 1].Should().BeLessThan(1.0);
+        matrix[0, 1].Should().BeGreaterThan(0.0);
+    }
+
+    [Fact]
+    public void Compute_WithTrackAnalysis_Should_RejectStrongMicrosegmentMismatch_WhenEnabled()
+    {
+        var analysis = CreateAnalysisWithMicroFingerprints(
+            CreateMicroFingerprint(0, [1f, 1f, 1f, 1f]),
+            CreateMicroFingerprint(1, [-1f, -1f, -1f, -1f]));
+        var options = CreateMicroOptions();
+
+        var matrix = SelfSimilarityMatrix.Compute(analysis, options);
+
+        matrix[0, 1].Should().Be(0.0);
+    }
+
+    [Fact]
+    public void Compute_WithTrackAnalysis_Should_NotBoost_WhenMicrosegmentsMatch()
+    {
+        var analysis = CreateAnalysisWithMicroFingerprints(
+            CreateMicroFingerprint(0, [1f, 1f, 1f, 1f]),
+            CreateMicroFingerprint(1, [1f, 1f, 1f, 1f]));
+        var options = CreateMicroOptions();
+        var withoutMicro = SelfSimilarityMatrix.Compute(analysis, CreateMicroOptions(useMicrosegmentSimilarity: false));
+
+        var matrix = SelfSimilarityMatrix.Compute(analysis, options);
+
+        matrix[0, 1].Should().BeLessThanOrEqualTo(withoutMicro[0, 1]);
+        matrix[0, 1].Should().BeApproximately(withoutMicro[0, 1], 1e-6);
+    }
+
+    [Fact]
+    public void Compute_WithTrackAnalysis_Should_MatchPreviousBehavior_WhenMicrosegmentFilterDisabled()
+    {
+        var analysis = CreateAnalysisWithMicroFingerprints(
+            CreateMicroFingerprint(0, [1f, 1f, 1f, 1f]),
+            CreateMicroFingerprint(1, [-1f, -1f, -1f, -1f]));
+
+        var matrix = SelfSimilarityMatrix.Compute(analysis, CreateMicroOptions(useMicrosegmentSimilarity: false));
+
+        matrix[0, 1].Should().BeApproximately(1.0, 1e-6);
+    }
+
+    [Fact]
+    public void Compute_WithTrackAnalysis_Should_IgnoreMissingMicroFingerprints()
+    {
+        var analysis = CreateAnalysis(ai: null);
+
+        var matrix = SelfSimilarityMatrix.Compute(analysis, CreateMicroOptions());
+
+        matrix[0, 1].Should().BeApproximately(1.0, 1e-6);
+    }
+
+    [Fact]
+    public void Compute_WithBeatsOptionsOverload_Should_NotRequireMicroFingerprints()
+    {
+        var beats = new[] { CreateBeat(0, [1f, 0f], [1f, 0f]), CreateBeat(1, [1f, 0f], [1f, 0f]) };
+
+        var matrix = SelfSimilarityMatrix.Compute(beats, CreateMicroOptions());
+
+        matrix[0, 1].Should().BeApproximately(1.0, 1e-6);
+    }
+
+    [Fact]
     public void Compute_Should_UseMetricPositionGate_WhenOptionsAreProvided()
     {
         var beats = CreateMetricMismatchBeats();
@@ -696,6 +770,66 @@ public sealed class SelfSimilarityMatrixTests
             MetricPositionMode = mode,
             MetricPositionPenaltyStrength = penaltyStrength,
             MetricPositionRejectionThreshold = rejectionThreshold
+        };
+    }
+
+    private static BranchFindingOptions CreateMicroOptions(bool useMicrosegmentSimilarity = true)
+    {
+        return new BranchFindingOptions
+        {
+            UseAiSimilarity = false,
+            UseDurationSimilarityGate = false,
+            UseConfidencePenalty = false,
+            UseMicrosegmentSimilarity = useMicrosegmentSimilarity,
+            TimbreWeight = 1.0,
+            PitchWeight = 0.0,
+            LoudnessWeight = 0.0,
+            BarPositionWeight = 0.0,
+            MetricPositionMode = MetricPositionMode.Disabled,
+            MicrosegmentCount = 4,
+            MicrosegmentPenaltyStartThreshold = 0.82,
+            MicrosegmentRejectionThreshold = 0.40,
+            MicrosegmentPenaltyStrength = 0.25
+        };
+    }
+
+    private static TrackAnalysis CreateAnalysisWithMicroFingerprints(
+        BeatMicroFingerprint first,
+        BeatMicroFingerprint second)
+    {
+        var analysis = CreateAnalysis(ai: null);
+        return new TrackAnalysis
+        {
+            Metadata = analysis.Metadata,
+            Segments = analysis.Segments,
+            Beats = analysis.Beats,
+            Bars = analysis.Bars,
+            Tatums = analysis.Tatums,
+            Sections = analysis.Sections,
+            MicroFingerprints = [first, second],
+            Ai = analysis.Ai
+        };
+    }
+
+    private static BeatMicroFingerprint CreateMicroFingerprint(int beatIndex, float[] values)
+    {
+        return new BeatMicroFingerprint
+        {
+            BeatIndex = beatIndex,
+            Microsegments = values
+                .Select((value, index) => new BeatMicrosegment
+                {
+                    BeatIndex = beatIndex,
+                    SegmentIndex = index,
+                    Start = index * 0.125,
+                    Duration = 0.125,
+                    RelativePosition = values.Length <= 1 ? 0f : index / (float)(values.Length - 1),
+                    Timbre = [value, 1f],
+                    Pitches = [value, 1f],
+                    Loudness = [value, 1f, 1f],
+                    Flux = value
+                })
+                .ToArray()
         };
     }
 

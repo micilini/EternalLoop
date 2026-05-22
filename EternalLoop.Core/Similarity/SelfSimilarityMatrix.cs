@@ -25,6 +25,7 @@ public static class SelfSimilarityMatrix
             loudnessWeight,
             barPositionWeight,
             null,
+            null,
             null);
     }
 
@@ -42,6 +43,7 @@ public static class SelfSimilarityMatrix
             options.LoudnessWeight,
             options.BarPositionWeight,
             null,
+            null,
             options);
     }
 
@@ -53,6 +55,9 @@ public static class SelfSimilarityMatrix
         var embeddings = options.UseAiSimilarity
             ? analysis.Ai?.BeatEmbeddings.ToDictionary(embedding => embedding.BeatIndex, embedding => embedding.Vector)
             : null;
+        var microFingerprints = options.UseMicrosegmentSimilarity
+            ? analysis.MicroFingerprints.ToDictionary(fingerprint => fingerprint.BeatIndex)
+            : null;
 
         return ComputeInternal(
             analysis.Beats,
@@ -61,6 +66,7 @@ public static class SelfSimilarityMatrix
             options.LoudnessWeight,
             options.BarPositionWeight,
             embeddings,
+            microFingerprints,
             options);
     }
 
@@ -71,6 +77,7 @@ public static class SelfSimilarityMatrix
         double loudnessWeight,
         double barPositionWeight,
         IReadOnlyDictionary<int, float[]>? aiEmbeddings,
+        IReadOnlyDictionary<int, BeatMicroFingerprint>? microFingerprints,
         BranchFindingOptions? options)
     {
         if (beats.Count == 0)
@@ -154,6 +161,22 @@ public static class SelfSimilarityMatrix
                         options.ConfidencePenaltyStart,
                         options.ConfidenceRejectionThreshold,
                         options.ConfidencePenaltyStrength);
+                }
+
+                if (options?.UseMicrosegmentSimilarity == true && microFingerprints is { Count: > 0 })
+                {
+                    microFingerprints.TryGetValue(beats[i].Index, out var sourceFingerprint);
+                    microFingerprints.TryGetValue(beats[j].Index, out var destinationFingerprint);
+
+                    _ = MicrosegmentSimilarityGate.TryApply(
+                        score,
+                        sourceFingerprint,
+                        destinationFingerprint,
+                        options.MicrosegmentCount,
+                        options.MicrosegmentPenaltyStartThreshold,
+                        options.MicrosegmentRejectionThreshold,
+                        options.MicrosegmentPenaltyStrength,
+                        out score);
                 }
 
                 matrix[i, j] = score;

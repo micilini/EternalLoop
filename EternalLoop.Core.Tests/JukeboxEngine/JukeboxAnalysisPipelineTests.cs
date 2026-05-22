@@ -47,6 +47,39 @@ public sealed class JukeboxAnalysisPipelineTests
     }
 
     [Fact]
+    public async Task AnalysisPipeline_saves_microfingerprints_when_enabled()
+    {
+        var cache = new FakeTrackAnalysisCache();
+        var pipeline = CreatePipeline(cache: cache);
+
+        await pipeline.AnalyzeAsync("test.wav", new RecordingProgressReporter(), CancellationToken.None);
+
+        cache.Saved.Should().NotBeNull();
+        cache.Saved!.MicroFingerprints.Should().NotBeEmpty();
+        cache.Saved.MicroFingerprints.Should().OnlyContain(fingerprint => fingerprint.Microsegments.Count >= 4);
+    }
+
+    [Fact]
+    public async Task AnalysisPipeline_skips_microfingerprints_when_disabled()
+    {
+        var cache = new FakeTrackAnalysisCache();
+        var pipeline = CreatePipeline(cache: cache);
+
+        await pipeline.AnalyzeAsync(
+            "test.wav",
+            new RecordingProgressReporter(),
+            CancellationToken.None,
+            branchOptions: new BranchFindingOptions
+            {
+                UseAiSimilarity = false,
+                UseMicrosegmentSimilarity = false
+            });
+
+        cache.Saved.Should().NotBeNull();
+        cache.Saved!.MicroFingerprints.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task AnalyzeAsync_ReturnsCompletedAiRun_WhenAiSucceeds()
     {
         var pipeline = CreatePipeline();
@@ -190,6 +223,20 @@ public sealed class JukeboxAnalysisPipelineTests
     }
 
     [Fact]
+    public void BuildGraph_uses_microfingerprints_when_available()
+    {
+        var branchFinder = new FakeBranchFinder();
+        var pipeline = CreatePipeline(branchFinder: branchFinder);
+        var analysis = CreateCachedAnalysis(includeAi: true, includeMicroFingerprints: true);
+
+        _ = pipeline.BuildGraph(analysis, new BranchFindingOptions { UseMicrosegmentSimilarity = true });
+
+        branchFinder.ReceivedTrackAnalysis.Should().BeTrue();
+        branchFinder.LastAnalysis.Should().NotBeNull();
+        branchFinder.LastAnalysis!.MicroFingerprints.Should().NotBeEmpty();
+    }
+
+    [Fact]
     public async Task AnalyzeAsync_UsesCache_WhenAnalysisExists()
     {
         var audioLoader = new FakeAudioLoader();
@@ -244,6 +291,31 @@ public sealed class JukeboxAnalysisPipelineTests
         var pipeline = CreatePipeline(cache: cache, aiEmbeddingExtractor: aiExtractor);
 
         var result = await pipeline.AnalyzeAsync("test.wav", new RecordingProgressReporter(), CancellationToken.None);
+
+        result.LoadedFromCache.Should().BeFalse();
+        aiExtractor.CallCount.Should().Be(1);
+        cache.SaveCalls.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Cached_analysis_without_microfingerprints_is_ignored_when_microsegments_enabled()
+    {
+        var aiExtractor = new FakeAiEmbeddingExtractor();
+        var cache = new FakeTrackAnalysisCache
+        {
+            Cached = CreateCachedAnalysis(includeAi: true, includeMicroFingerprints: false)
+        };
+        var pipeline = CreatePipeline(cache: cache, aiEmbeddingExtractor: aiExtractor);
+
+        var result = await pipeline.AnalyzeAsync(
+            "test.wav",
+            new RecordingProgressReporter(),
+            CancellationToken.None,
+            branchOptions: new BranchFindingOptions
+            {
+                UseAiSimilarity = true,
+                UseMicrosegmentSimilarity = true
+            });
 
         result.LoadedFromCache.Should().BeFalse();
         aiExtractor.CallCount.Should().Be(1);
@@ -578,7 +650,7 @@ public sealed class JukeboxAnalysisPipelineTests
         };
     }
 
-    private static TrackAnalysis CreateCachedAnalysis(bool includeAi = true)
+    private static TrackAnalysis CreateCachedAnalysis(bool includeAi = true, bool includeMicroFingerprints = true)
     {
         return new TrackAnalysis
         {
@@ -609,6 +681,7 @@ public sealed class JukeboxAnalysisPipelineTests
             Bars = [],
             Tatums = [],
             Sections = [],
+            MicroFingerprints = includeMicroFingerprints ? CreateMicroFingerprints(24) : [],
             Ai = includeAi ? CreateAiAnalysisData() : null
         };
     }
@@ -643,8 +716,34 @@ public sealed class JukeboxAnalysisPipelineTests
                 .ToArray(),
             Bars = [],
             Tatums = [],
-            Sections = []
+            Sections = [],
+            MicroFingerprints = CreateMicroFingerprints(63)
         };
+    }
+
+    private static IReadOnlyList<BeatMicroFingerprint> CreateMicroFingerprints(int beatCount)
+    {
+        return Enumerable.Range(0, beatCount)
+            .Select(beatIndex => new BeatMicroFingerprint
+            {
+                BeatIndex = beatIndex,
+                Microsegments =
+                [
+                    new BeatMicrosegment
+                    {
+                        BeatIndex = beatIndex,
+                        SegmentIndex = 0,
+                        Start = beatIndex * 0.5,
+                        Duration = 0.125,
+                        RelativePosition = 0f,
+                        Timbre = [1f],
+                        Pitches = [1f],
+                        Loudness = [1f, 1f, 1f],
+                        Flux = 0.1f
+                    }
+                ]
+            })
+            .ToArray();
     }
 
     private static AiAnalysisData CreateAiAnalysisData()
@@ -731,6 +830,8 @@ public sealed class JukeboxAnalysisPipelineTests
 
         public BranchFindingOptions? LastOptions { get; private set; }
 
+        public TrackAnalysis? LastAnalysis { get; private set; }
+
         public IReadOnlyList<JukeboxEdge> FindBranches(IReadOnlyList<Beat> beats, BranchFindingOptions options)
         {
             WasCalled = true;
@@ -744,6 +845,7 @@ public sealed class JukeboxAnalysisPipelineTests
         {
             WasCalled = true;
             ReceivedTrackAnalysis = true;
+            LastAnalysis = analysis;
             LastOptions = options;
             return CreateEdges(analysis.Beats);
         }
