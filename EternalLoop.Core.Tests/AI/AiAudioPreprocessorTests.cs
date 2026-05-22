@@ -9,6 +9,8 @@ namespace EternalLoop.Core.Tests.AI;
 public sealed class AiAudioPreprocessorTests
 {
     private const int SourceSampleRate = 22_050;
+    private const int OverflowRegressionSourceSampleCount = 200_000;
+    private const int InterpolationOverflowRegressionSourceSampleCount = 70_000;
     private const double OneSecond = 1.0;
     private const double TwoSeconds = 2.0;
 
@@ -72,5 +74,44 @@ public sealed class AiAudioPreprocessorTests
         _ = preprocessor.ResampleToModelRate(audio, AiPreprocessingDefaultValues.SampleRate);
 
         audio.Samples.Should().Equal(original);
+    }
+
+    [Fact]
+    public void ResampleToModelRate_calculates_target_length_without_integer_overflow()
+    {
+        var samples = Enumerable.Range(0, OverflowRegressionSourceSampleCount)
+            .Select(index => index % 2 == 0 ? 0.25f : -0.25f)
+            .ToArray();
+        var audio = new LoadedAudio(
+            samples,
+            SourceSampleRate,
+            OverflowRegressionSourceSampleCount / (double)SourceSampleRate,
+            "target-length-overflow-regression");
+        var expectedLength = (int)Math.Round(OverflowRegressionSourceSampleCount * (double)AiPreprocessingDefaultValues.SampleRate / SourceSampleRate);
+        var preprocessor = new AiAudioPreprocessor();
+
+        var resampled = preprocessor.ResampleToModelRate(audio, AiPreprocessingDefaultValues.SampleRate);
+
+        resampled.Should().HaveCount(expectedLength);
+        resampled.Should().OnlyContain(value => float.IsFinite(value));
+    }
+
+    [Fact]
+    public void ResampleToModelRate_interpolates_large_inputs_without_index_overflow()
+    {
+        var samples = Enumerable.Range(0, InterpolationOverflowRegressionSourceSampleCount)
+            .Select(index => index / (float)InterpolationOverflowRegressionSourceSampleCount)
+            .ToArray();
+        var audio = new LoadedAudio(
+            samples,
+            SourceSampleRate,
+            InterpolationOverflowRegressionSourceSampleCount / (double)SourceSampleRate,
+            "interpolation-overflow-regression");
+        var preprocessor = new AiAudioPreprocessor();
+
+        var resampled = preprocessor.ResampleToModelRate(audio, AiPreprocessingDefaultValues.SampleRate);
+
+        resampled.Should().NotBeEmpty();
+        resampled.Should().OnlyContain(value => float.IsFinite(value));
     }
 }

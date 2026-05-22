@@ -33,7 +33,7 @@ public sealed class AiAudioPreprocessor
             return audio.Samples.Select(Sanitize).ToArray();
         }
 
-        var targetLength = Math.Max(1, (int)Math.Round(audio.Samples.Length * targetSampleRate / (double)audio.SampleRate));
+        var targetLength = CalculateTargetLength(audio.Samples.LongLength, audio.SampleRate, targetSampleRate);
         var sourceLength = audio.Samples.Length;
         var output = new float[targetLength];
 
@@ -45,11 +45,12 @@ public sealed class AiAudioPreprocessor
 
         var sourceSpan = sourceLength - 1;
         var targetSpan = targetLength - 1;
+        var sourceScale = sourceSpan / (double)targetSpan;
 
         for (var targetIndex = 0; targetIndex < targetLength; targetIndex++)
         {
-            var sourcePosition = targetIndex * sourceSpan / (double)targetSpan;
-            var left = (int)Math.Floor(sourcePosition);
+            var sourcePosition = targetIndex * sourceScale;
+            var left = Math.Clamp((int)Math.Floor(sourcePosition), 0, sourceLength - 1);
             var right = Math.Min(left + 1, sourceLength - 1);
             var fraction = sourcePosition - left;
             var leftSample = Sanitize(audio.Samples[left]);
@@ -58,6 +59,18 @@ public sealed class AiAudioPreprocessor
         }
 
         return output;
+    }
+
+    private static int CalculateTargetLength(long sourceLength, int sourceSampleRate, int targetSampleRate)
+    {
+        var targetLength = Math.Round(sourceLength * (double)targetSampleRate / sourceSampleRate);
+
+        if (targetLength > Array.MaxLength)
+        {
+            throw new InvalidOperationException("AI resampling output is too large for a single array.");
+        }
+
+        return Math.Max(1, (int)targetLength);
     }
 
     private static float Sanitize(float value)
