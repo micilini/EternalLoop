@@ -16,6 +16,8 @@ public sealed class JsonSettingsRepositoryTests
 
         settings.Theme.Should().Be("Dark");
         settings.Volume.Should().Be(1.0f);
+        settings.SettingsSchemaVersion.Should().Be(3);
+        settings.UseAiSimilarity.Should().BeTrue();
     }
 
     [Fact]
@@ -35,6 +37,7 @@ public sealed class JsonSettingsRepositoryTests
             JumpProbability = 0.55,
             JumpCooldown = 4,
             FirstPassLinearPlaybackRatio = 0.65,
+            UseAiSimilarity = false,
             RecentFiles = ["a.mp3", "b.mp3"]
         }, CancellationToken.None);
 
@@ -50,6 +53,8 @@ public sealed class JsonSettingsRepositoryTests
         settings.JumpProbability.Should().Be(0.55);
         settings.JumpCooldown.Should().Be(4);
         settings.FirstPassLinearPlaybackRatio.Should().Be(0.65);
+        settings.UseAiSimilarity.Should().BeFalse();
+        settings.SettingsSchemaVersion.Should().Be(3);
         settings.RecentFiles.Should().Equal("a.mp3", "b.mp3");
     }
 
@@ -111,7 +116,8 @@ public sealed class JsonSettingsRepositoryTests
 
         var settings = await repository.LoadAsync(CancellationToken.None);
 
-        settings.SettingsSchemaVersion.Should().Be(2);
+        settings.SettingsSchemaVersion.Should().Be(3);
+        settings.UseAiSimilarity.Should().BeTrue();
         settings.MinJumpDistance.Should().Be(20);
         settings.MaxBranchesPerBeat.Should().Be(3);
         settings.FirstPassLinearPlaybackRatio.Should().Be(0.78);
@@ -137,7 +143,8 @@ public sealed class JsonSettingsRepositoryTests
 
         var settings = await repository.LoadAsync(CancellationToken.None);
 
-        settings.SettingsSchemaVersion.Should().Be(2);
+        settings.SettingsSchemaVersion.Should().Be(3);
+        settings.UseAiSimilarity.Should().BeTrue();
         settings.Preset.Should().Be("Balanced");
         settings.SimilarityThreshold.Should().Be(0.86);
         settings.LookaheadDepth.Should().Be(4);
@@ -146,6 +153,55 @@ public sealed class JsonSettingsRepositoryTests
         settings.JumpProbability.Should().Be(0.22);
         settings.JumpCooldown.Should().Be(12);
         settings.FirstPassLinearPlaybackRatio.Should().Be(0.78);
+    }
+
+    [Fact]
+    public async Task LoadAsync_Should_MigrateSchemaTwoSettings_ToAiDefaultsWithoutResettingTuning()
+    {
+        var repository = CreateRepository(out var paths);
+        await File.WriteAllTextAsync(paths.SettingsFilePath, """
+            {
+              "SettingsSchemaVersion": 2,
+              "Preset": "Wild",
+              "SimilarityThreshold": 0.72,
+              "LookaheadDepth": 2,
+              "MinJumpDistance": 8,
+              "MaxBranchesPerBeat": 8,
+              "JumpProbability": 0.55,
+              "JumpCooldown": 4,
+              "FirstPassLinearPlaybackRatio": 0.65
+            }
+            """);
+
+        var settings = await repository.LoadAsync(CancellationToken.None);
+
+        settings.SettingsSchemaVersion.Should().Be(3);
+        settings.UseAiSimilarity.Should().BeTrue();
+        settings.Preset.Should().Be("Wild");
+        settings.SimilarityThreshold.Should().Be(0.72);
+        settings.LookaheadDepth.Should().Be(2);
+        settings.MinJumpDistance.Should().Be(8);
+        settings.MaxBranchesPerBeat.Should().Be(8);
+        settings.JumpProbability.Should().Be(0.55);
+        settings.JumpCooldown.Should().Be(4);
+        settings.FirstPassLinearPlaybackRatio.Should().Be(0.65);
+    }
+
+    [Fact]
+    public async Task LoadAsync_Should_PreserveAiToggle_WhenSchemaIsCurrent()
+    {
+        var repository = CreateRepository(out var paths);
+        await File.WriteAllTextAsync(paths.SettingsFilePath, """
+            {
+              "SettingsSchemaVersion": 3,
+              "UseAiSimilarity": false
+            }
+            """);
+
+        var settings = await repository.LoadAsync(CancellationToken.None);
+
+        settings.SettingsSchemaVersion.Should().Be(3);
+        settings.UseAiSimilarity.Should().BeFalse();
     }
 
     private static JsonSettingsRepository CreateRepository(out LocalAppDataPathProvider paths)

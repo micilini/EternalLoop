@@ -18,9 +18,17 @@ public sealed class BranchFindingOptions
 
     public int MaxBranchesPerBeat { get; init; } = TuningDefaultValues.MaxBranchesPerBeat;
 
-    public int LandingOffsetBeats { get; init; } = 1;
+    public int LandingOffsetBeats { get; init; } = TuningDefaultValues.AiBeatContextBefore;
 
     public int ContinuationLookaheadDepth { get; init; } = TuningDefaultValues.PhraseValidationLookaheadDepth;
 
     public double ContinuationThresholdMargin { get; init; } = TuningDefaultValues.PhraseValidationThresholdMargin;
+
+    public bool UseAiSimilarity { get; init; } = TuningDefaultValues.UseAiSimilarity;
+
+    public double AiRejectionThreshold { get; init; } = TuningDefaultValues.AiRejectionThreshold;
+
+    public double AiPenaltyStartThreshold { get; init; } = TuningDefaultValues.AiPenaltyStartThreshold;
+
+    public double AiPenaltyStrength { get; init; } = TuningDefaultValues.AiPenaltyStrength;
 }

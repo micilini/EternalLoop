@@ -27,6 +27,8 @@ public sealed class UserSettings
 
     public double FirstPassLinearPlaybackRatio { get; set; } = TuningDefaultValues.FirstPassLinearPlaybackRatio;
 
+    public bool UseAiSimilarity { get; set; } = TuningDefaultValues.UseAiSimilarity;
+
     public string? LastOpenedFile { get; set; }
 
     public List<string> RecentFiles { get; set; } = new();

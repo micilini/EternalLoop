@@ -2,7 +2,7 @@ namespace EternalLoop.Contracts.Options;
 
 public static class TuningDefaultValues
 {
-    public const int SettingsSchemaVersion = 2;
+    public const int SettingsSchemaVersion = 3;
 
     public const double DefaultVolume = 1.0;
 
@@ -20,6 +20,13 @@ public static class TuningDefaultValues
     public const double BarPositionWeight = 0.18;
     public const int PhraseValidationLookaheadDepth = 6;
     public const double PhraseValidationThresholdMargin = 0.02;
+
+    public const bool UseAiSimilarity = true;
+    public const double AiRejectionThreshold = 0.58;
+    public const double AiPenaltyStartThreshold = 0.72;
+    public const double AiPenaltyStrength = 0.22;
+    public const int AiBeatContextBefore = 1;
+    public const int AiBeatContextAfter = 2;
 
     public const int MinLookaheadDepth = 1;
     public const int MaxLookaheadDepth = 8;

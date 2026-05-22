@@ -135,6 +135,7 @@ public partial class AnalysisViewModel : ObservableObject, IAnalysisProgressRepo
                 AnalysisStage.Loading => "Preparing the track...",
                 AnalysisStage.ExtractingFeatures => "Listening for musical patterns...",
                 AnalysisStage.TrackingBeats => "Finding the rhythm...",
+                AnalysisStage.RunningAi => "Running local AI similarity...",
                 AnalysisStage.BuildingGraph => "Drawing loop paths...",
                 AnalysisStage.Done => "Almost ready...",
                 _ => "Preparing..."
@@ -164,12 +165,13 @@ public partial class AnalysisViewModel : ObservableObject, IAnalysisProgressRepo
             AnalysisStage.Loading => 0,
             AnalysisStage.ExtractingFeatures => 1,
             AnalysisStage.TrackingBeats => 2,
-            AnalysisStage.BuildingGraph => 3,
-            AnalysisStage.Done => 4,
+            AnalysisStage.RunningAi => 3,
+            AnalysisStage.BuildingGraph => 4,
+            AnalysisStage.Done => 5,
             _ => 0
         };
 
-        return Math.Clamp((stageIndex + Math.Clamp(progress01, 0, 1)) / 5.0, 0, 1);
+        return Math.Clamp((stageIndex + Math.Clamp(progress01, 0, 1)) / 6.0, 0, 1);
     }
 
     private void ReportOnUi(string stage, string message)
