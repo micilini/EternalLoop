@@ -2,7 +2,9 @@ using EternalLoop.Contracts.Abstractions;
 using EternalLoop.Contracts.Enums;
 using EternalLoop.Contracts.Models;
 using EternalLoop.Contracts.Options;
+using EternalLoop.Core.AI;
 using EternalLoop.Core.BeatTracking;
+using EternalLoop.Core.Diagnostics;
 using EternalLoop.Core.Similarity;
 using Microsoft.Extensions.Logging;
 
@@ -12,12 +14,16 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
 {
     private const int AnalysisSampleRate = 22_050;
     private const int DefaultTimeSignature = 4;
+    private const int MaximumAiFailureReasonLength = 120;
 
     private readonly IAudioLoader _audioLoader;
     private readonly IFeatureExtractor _featureExtractor;
     private readonly IBeatTracker _beatTracker;
     private readonly IBranchFinder _branchFinder;
     private readonly ITrackAnalysisCache _cache;
+    private readonly IAiEmbeddingExtractor _aiEmbeddingExtractor;
+    private readonly AiBeatEmbeddingAggregator _aiBeatEmbeddingAggregator;
+    private readonly AiFailureDiagnosticWriter _aiFailureDiagnosticWriter;
     private readonly ILogger<JukeboxAnalysisPipeline> _logger;
 
     public JukeboxAnalysisPipeline(
@@ -26,6 +32,9 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
         IBeatTracker beatTracker,
         IBranchFinder branchFinder,
         ITrackAnalysisCache cache,
+        IAiEmbeddingExtractor aiEmbeddingExtractor,
+        AiBeatEmbeddingAggregator aiBeatEmbeddingAggregator,
+        AiFailureDiagnosticWriter aiFailureDiagnosticWriter,
         ILogger<JukeboxAnalysisPipeline> logger)
     {
         _audioLoader = audioLoader ?? throw new ArgumentNullException(nameof(audioLoader));
@@ -33,6 +42,9 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
         _beatTracker = beatTracker ?? throw new ArgumentNullException(nameof(beatTracker));
         _branchFinder = branchFinder ?? throw new ArgumentNullException(nameof(branchFinder));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+        _aiEmbeddingExtractor = aiEmbeddingExtractor ?? throw new ArgumentNullException(nameof(aiEmbeddingExtractor));
+        _aiBeatEmbeddingAggregator = aiBeatEmbeddingAggregator ?? throw new ArgumentNullException(nameof(aiBeatEmbeddingAggregator));
+        _aiFailureDiagnosticWriter = aiFailureDiagnosticWriter ?? throw new ArgumentNullException(nameof(aiFailureDiagnosticWriter));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -73,12 +85,18 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
                             cachedAnalysis.Metadata.Tempo,
                             cachedAnalysis.Beats.Count));
                 }
+                else if (!CanUseCachedAnalysis(cachedAnalysis, effectiveBranchOptions))
+                {
+                    _logger.LogInformation(
+                        "Ignoring cached analysis for {FileHash}: AI data is missing or incompatible",
+                        audio.FileHash);
+                }
                 else
                 {
                     _logger.LogInformation("Track analysis cache hit for {FileHash}", audio.FileHash);
 
                     progressReporter.Report(AnalysisStage.BuildingGraph, 0.0, "Loading loop map");
-                    var cachedGraph = BuildGraph(cachedAnalysis.Beats, effectiveBranchOptions);
+                    var cachedGraph = BuildGraph(cachedAnalysis, effectiveBranchOptions);
                     progressReporter.Report(AnalysisStage.BuildingGraph, 1.0, "Loop map ready");
                     progressReporter.Report(AnalysisStage.Done, 1.0, "Loaded from cache");
 
@@ -87,7 +105,8 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
                         Audio = audio,
                         Analysis = cachedAnalysis,
                         Graph = cachedGraph,
-                        LoadedFromCache = true
+                        LoadedFromCache = true,
+                        AiRun = CreateCacheAiRunInfo(cachedAnalysis, effectiveBranchOptions)
                     };
                 }
             }
@@ -132,10 +151,20 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
 
         cancellationToken.ThrowIfCancellationRequested();
 
+        var aiResult = await ExtractAiDataAsync(
+            filePath,
+            audio,
+            progressReporter,
+            effectiveBranchOptions,
+            beats,
+            cancellationToken).ConfigureAwait(false);
+
+        cancellationToken.ThrowIfCancellationRequested();
+
         progressReporter.Report(AnalysisStage.BuildingGraph, 0.0, "Building graph");
-        var analysis = BuildAnalysis(filePath, audio, beatTracking, features, beats);
+        var analysis = BuildAnalysis(filePath, audio, beatTracking, features, beats, aiResult.Data);
         await _cache.SaveAsync(analysis, cancellationToken).ConfigureAwait(false);
-        var graph = BuildGraph(beats, effectiveBranchOptions);
+        var graph = BuildGraph(analysis, effectiveBranchOptions);
         progressReporter.Report(AnalysisStage.BuildingGraph, 1.0, $"Built {graph.JumpEdges.Sum(pair => pair.Value.Count)} jump edges");
 
         progressReporter.Report(AnalysisStage.Done, 1.0, "Analysis complete");
@@ -150,7 +179,8 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
             Audio = audio,
             Analysis = analysis,
             Graph = graph,
-            LoadedFromCache = false
+            LoadedFromCache = false,
+            AiRun = aiResult.RunInfo
         };
     }
 
@@ -165,12 +195,24 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
         return JukeboxGraphBuilder.Build(beats, edges, options);
     }
 
+    public JukeboxGraph BuildGraph(
+        TrackAnalysis analysis,
+        BranchFindingOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(analysis);
+        ArgumentNullException.ThrowIfNull(options);
+
+        var edges = _branchFinder.FindBranches(analysis, options);
+        return JukeboxGraphBuilder.Build(analysis.Beats, edges, options);
+    }
+
     private static TrackAnalysis BuildAnalysis(
         string filePath,
         LoadedAudio audio,
         BeatTrackingResult beatTracking,
         FeatureMatrix features,
-        IReadOnlyList<Beat> beats)
+        IReadOnlyList<Beat> beats,
+        AiAnalysisData? aiData)
     {
         return new TrackAnalysis
         {
@@ -189,8 +231,165 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
             Beats = beats,
             Bars = BuildBars(beats, DefaultTimeSignature),
             Tatums = BuildTatums(beats),
-            Sections = BuildSections(audio, beatTracking.EstimatedBpm)
+            Sections = BuildSections(audio, beatTracking.EstimatedBpm),
+            Ai = aiData
         };
+    }
+
+    private async Task<AiExtractionPipelineResult> ExtractAiDataAsync(
+        string filePath,
+        LoadedAudio audio,
+        IAnalysisProgressReporter progressReporter,
+        BranchFindingOptions branchOptions,
+        IReadOnlyList<Beat> beats,
+        CancellationToken cancellationToken)
+    {
+        if (!branchOptions.UseAiSimilarity)
+        {
+            return new AiExtractionPipelineResult
+            {
+                Data = null,
+                RunInfo = AiAnalysisRunInfo.Disabled
+            };
+        }
+
+        progressReporter.Report(AnalysisStage.RunningAi, 0.0, "Running local AI similarity");
+        var aiOptions = CreateAiOptions(branchOptions);
+        try
+        {
+            var extractionResult = await _aiEmbeddingExtractor.ExtractAsync(audio, progressReporter, cancellationToken).ConfigureAwait(false);
+            var beatEmbeddings = _aiBeatEmbeddingAggregator.Aggregate(beats, extractionResult.Frames, aiOptions);
+            progressReporter.Report(AnalysisStage.RunningAi, 1.0, "AI beat embeddings ready");
+
+            return new AiExtractionPipelineResult
+            {
+                Data = new AiAnalysisData
+                {
+                    ModelId = extractionResult.ModelId,
+                    ModelVersion = extractionResult.ModelVersion,
+                    SampleRate = extractionResult.SampleRate,
+                    EmbeddingDimensions = extractionResult.EmbeddingDimensions,
+                    BeatEmbeddings = beatEmbeddings
+                },
+                RunInfo = AiAnalysisRunInfo.Completed
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (IsRecoverableAiException(ex))
+        {
+            var diagnosticFilePath = TryWriteAiFailureDiagnostic(filePath, audio, beats, branchOptions, ex);
+            _logger.LogWarning(
+                ex,
+                "Local AI similarity failed; continuing with classic analysis. DiagnosticFilePath: {DiagnosticFilePath}. Full exception: {ExceptionText}",
+                diagnosticFilePath,
+                ex.ToString());
+            progressReporter.Report(AnalysisStage.RunningAi, 1.0, "AI similarity failed. Using classic analysis.");
+            return new AiExtractionPipelineResult
+            {
+                Data = null,
+                RunInfo = AiAnalysisRunInfo.FailedFallback(SanitizeAiFailureReason(ex), diagnosticFilePath)
+            };
+        }
+    }
+
+    private string? TryWriteAiFailureDiagnostic(
+        string filePath,
+        LoadedAudio audio,
+        IReadOnlyList<Beat> beats,
+        BranchFindingOptions branchOptions,
+        Exception exception)
+    {
+        try
+        {
+            return _aiFailureDiagnosticWriter.Write(filePath, audio, beats, branchOptions, exception);
+        }
+        catch (Exception diagnosticException)
+        {
+            _logger.LogError(
+                diagnosticException,
+                "Failed to write AI failure diagnostic report. Original AI exception: {OriginalException}",
+                exception.ToString());
+
+            return null;
+        }
+    }
+
+    private static bool IsRecoverableAiException(Exception exception)
+    {
+        return exception is OnnxInferenceException
+            or IndexOutOfRangeException
+            or ArgumentException
+            or InvalidOperationException;
+    }
+
+    private static AiAnalysisRunInfo CreateCacheAiRunInfo(
+        TrackAnalysis cachedAnalysis,
+        BranchFindingOptions options)
+    {
+        if (!options.UseAiSimilarity)
+        {
+            return AiAnalysisRunInfo.Disabled;
+        }
+
+        return cachedAnalysis.Ai is not null
+            ? AiAnalysisRunInfo.LoadedFromCache
+            : AiAnalysisRunInfo.Disabled;
+    }
+
+    private static string SanitizeAiFailureReason(Exception exception)
+    {
+        var exceptionName = exception.GetType().Name;
+        var message = exception.Message;
+
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return exceptionName;
+        }
+
+        var normalized = message.Replace(Environment.NewLine, " ", StringComparison.Ordinal).Trim();
+
+        if (normalized.Length > MaximumAiFailureReasonLength)
+        {
+            normalized = normalized[..MaximumAiFailureReasonLength].TrimEnd() + "...";
+        }
+
+        return $"{exceptionName}: {normalized}";
+    }
+
+    private static AiAnalysisOptions CreateAiOptions(BranchFindingOptions branchOptions)
+    {
+        return new AiAnalysisOptions
+        {
+            IsEnabled = branchOptions.UseAiSimilarity,
+            ModelId = AiModelDefaultValues.DiscogsEffNetModelId,
+            RejectionThreshold = branchOptions.AiRejectionThreshold,
+            PenaltyStartThreshold = branchOptions.AiPenaltyStartThreshold,
+            PenaltyStrength = branchOptions.AiPenaltyStrength,
+            BeatContextBefore = TuningDefaultValues.AiBeatContextBefore,
+            BeatContextAfter = TuningDefaultValues.AiBeatContextAfter
+        };
+    }
+
+    private static bool CanUseCachedAnalysis(TrackAnalysis analysis, BranchFindingOptions options)
+    {
+        if (!options.UseAiSimilarity)
+        {
+            return true;
+        }
+
+        return analysis.Ai is not null
+            && string.Equals(analysis.Ai.ModelId, AiModelDefaultValues.DiscogsEffNetModelId, StringComparison.Ordinal)
+            && analysis.Ai.EmbeddingDimensions == AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions;
+    }
+
+    private sealed class AiExtractionPipelineResult
+    {
+        public required AiAnalysisData? Data { get; init; }
+
+        public required AiAnalysisRunInfo RunInfo { get; init; }
     }
 
     private static IReadOnlyList<Segment> BuildSegments(FeatureMatrix features, int sampleRate)

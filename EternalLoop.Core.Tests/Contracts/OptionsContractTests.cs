@@ -46,6 +46,10 @@ public sealed class OptionsContractTests
         options.LandingOffsetBeats.Should().Be(1);
         options.ContinuationLookaheadDepth.Should().Be(6);
         options.ContinuationThresholdMargin.Should().Be(0.02);
+        options.UseAiSimilarity.Should().BeTrue();
+        options.AiRejectionThreshold.Should().Be(0.58);
+        options.AiPenaltyStartThreshold.Should().Be(0.72);
+        options.AiPenaltyStrength.Should().Be(0.22);
     }
 
     [Fact]
@@ -54,10 +58,11 @@ public sealed class OptionsContractTests
         var settings = new EternalLoop.Contracts.Models.UserSettings();
 
         settings.Preset.Should().Be("Balanced");
-        settings.SettingsSchemaVersion.Should().Be(2);
+        settings.SettingsSchemaVersion.Should().Be(3);
         settings.MinJumpDistance.Should().Be(20);
         settings.MaxBranchesPerBeat.Should().Be(3);
         settings.FirstPassLinearPlaybackRatio.Should().Be(0.78);
+        settings.UseAiSimilarity.Should().BeTrue();
     }
 
     [Fact]

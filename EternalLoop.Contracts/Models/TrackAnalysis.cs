@@ -18,4 +18,6 @@ public sealed class TrackAnalysis
     public required IReadOnlyList<Tatum> Tatums { get; init; }
 
     public required IReadOnlyList<Section> Sections { get; init; }
+
+    public AiAnalysisData? Ai { get; init; }
 }

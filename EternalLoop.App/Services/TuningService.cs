@@ -44,7 +44,7 @@ public sealed class TuningService : ITuningService
             };
         }
 
-        var graph = _pipeline.BuildGraph(current.Analysis.Beats, branchOptions);
+        var graph = _pipeline.BuildGraph(current.Analysis, branchOptions);
         _engine.ReloadGraph(graph);
 
         _sessionState.CurrentResult = new JukeboxAnalysisResult
@@ -52,7 +52,8 @@ public sealed class TuningService : ITuningService
             Audio = current.Audio,
             Analysis = current.Analysis,
             Graph = graph,
-            LoadedFromCache = current.LoadedFromCache
+            LoadedFromCache = current.LoadedFromCache,
+            AiRun = current.AiRun
         };
 
         await _settingsRepository.SaveAsync(settings, cancellationToken).ConfigureAwait(false);
@@ -63,7 +64,30 @@ public sealed class TuningService : ITuningService
         {
             GraphReloaded = true,
             BranchCount = branchCount,
-            Message = $"Tuning applied. Loop graph rebuilt with {branchCount} branch(es)."
+            Message = CreateTuningMessage(settings, current, branchCount)
         };
+    }
+
+    private static string CreateTuningMessage(
+        UserSettings settings,
+        JukeboxAnalysisResult current,
+        int branchCount)
+    {
+        if (current.AiRun.FellBackToClassic)
+        {
+            return $"AI fallback is active for this track. Graph rebuilt with classic DSP and {branchCount} branch(es).";
+        }
+
+        if (!settings.UseAiSimilarity)
+        {
+            return $"AI mode disabled. Loop graph rebuilt with classic DSP and {branchCount} branch(es).";
+        }
+
+        if (current.Analysis.Ai is not null)
+        {
+            return $"AI mode enabled. Loop graph rebuilt with local AI and {branchCount} branch(es).";
+        }
+
+        return $"AI mode enabled, but this track has no AI embeddings. Reanalyze the track to use local AI. Graph rebuilt with classic DSP and {branchCount} branch(es).";
     }
 }

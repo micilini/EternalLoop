@@ -9,4 +9,6 @@ public sealed class JukeboxAnalysisResult
     public required JukeboxGraph Graph { get; init; }
 
     public bool LoadedFromCache { get; init; }
+
+    public required AiAnalysisRunInfo AiRun { get; init; }
 }

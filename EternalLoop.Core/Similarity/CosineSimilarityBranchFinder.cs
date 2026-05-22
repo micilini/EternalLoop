@@ -19,6 +19,35 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
         ArgumentNullException.ThrowIfNull(beats);
         ArgumentNullException.ThrowIfNull(options);
 
+        var matrix = SelfSimilarityMatrix.Compute(
+            beats,
+            options.TimbreWeight,
+            options.PitchWeight,
+            options.LoudnessWeight,
+            options.BarPositionWeight);
+
+        return FindBranchesCore(beats, options, matrix, isAiActiveForThisAnalysis: false);
+    }
+
+    public IReadOnlyList<JukeboxEdge> FindBranches(
+        TrackAnalysis analysis,
+        BranchFindingOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(analysis);
+        ArgumentNullException.ThrowIfNull(options);
+
+        var matrix = SelfSimilarityMatrix.Compute(analysis, options);
+        var isAiActive = options.UseAiSimilarity && analysis.Ai is { BeatEmbeddings.Count: > 0 };
+
+        return FindBranchesCore(analysis.Beats, options, matrix, isAiActive);
+    }
+
+    private static IReadOnlyList<JukeboxEdge> FindBranchesCore(
+        IReadOnlyList<Beat> beats,
+        BranchFindingOptions options,
+        double[,] matrix,
+        bool isAiActiveForThisAnalysis)
+    {
         var lookahead = Math.Max(0, options.LookaheadDepth);
         if (beats.Count == 0 || beats.Count <= lookahead + 1)
         {
@@ -29,6 +58,7 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
         var maxBranchesPerBeat = Math.Max(1, options.MaxBranchesPerBeat);
         var landingOffset = Math.Clamp(options.LandingOffsetBeats, 0, Math.Max(1, lookahead + 1));
         var threshold = Math.Clamp(options.SimilarityThreshold, 0.0, 1.0);
+        threshold = ApplyAiThresholdFloor(threshold, options, isAiActiveForThisAnalysis);
         var continuationLookahead = Math.Clamp(
             Math.Max(options.ContinuationLookaheadDepth, lookahead + landingOffset + 2),
             lookahead,
@@ -38,12 +68,6 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
             0.0,
             1.0);
         var targetMaxEdges = GetAdaptiveTargetMaxEdges(beats.Count);
-        var matrix = SelfSimilarityMatrix.Compute(
-            beats,
-            options.TimbreWeight,
-            options.PitchWeight,
-            options.LoudnessWeight,
-            options.BarPositionWeight);
 
         var edges = BuildEdges(
             matrix,
@@ -63,6 +87,7 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
                 lookahead,
                 targetMaxEdges: targetMaxEdges,
                 fallbackThreshold: threshold);
+            threshold = ApplyAiThresholdFloor(threshold, options, isAiActiveForThisAnalysis);
 
             continuationThreshold = Math.Clamp(
                 threshold + Math.Max(0.0, options.ContinuationThresholdMargin),
@@ -84,6 +109,19 @@ public sealed class CosineSimilarityBranchFinder : IBranchFinder
             .ThenByDescending(edge => edge.Similarity)
             .ThenBy(edge => edge.ToBeat)
             .ToArray();
+    }
+
+    private static double ApplyAiThresholdFloor(
+        double threshold,
+        BranchFindingOptions options,
+        bool isAiActiveForThisAnalysis)
+    {
+        if (!isAiActiveForThisAnalysis)
+        {
+            return threshold;
+        }
+
+        return Math.Max(threshold, Math.Clamp(options.AiRejectionThreshold, 0.0, 1.0));
     }
 
     private static List<JukeboxEdge> BuildEdges(

@@ -1,5 +1,6 @@
 using EternalLoop.Contracts;
 using EternalLoop.Contracts.Models;
+using EternalLoop.Contracts.Options;
 using FluentAssertions;
 using System.Text.Json;
 
@@ -39,7 +40,22 @@ public sealed class TrackAnalysisContractTests
             },
             Bars = Array.Empty<Bar>(),
             Tatums = Array.Empty<Tatum>(),
-            Sections = Array.Empty<Section>()
+            Sections = Array.Empty<Section>(),
+            Ai = new AiAnalysisData
+            {
+                ModelId = AiModelDefaultValues.DiscogsEffNetModelId,
+                ModelVersion = AiModelDefaultValues.DiscogsEffNetVersion,
+                SampleRate = AiModelDefaultValues.DiscogsEffNetSampleRate,
+                EmbeddingDimensions = AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions,
+                BeatEmbeddings =
+                [
+                    new AiBeatEmbedding
+                    {
+                        BeatIndex = 0,
+                        Vector = [1f, 0f, 0f]
+                    }
+                ]
+            }
         };
 
         var json = JsonSerializer.Serialize(analysis);
@@ -47,13 +63,15 @@ public sealed class TrackAnalysisContractTests
         json.Should().Contain("abc123");
         json.Should().Contain("120.5");
         json.Should().Contain(TrackAnalysis.CurrentSchemaVersion);
+        json.Should().Contain(AiModelDefaultValues.DiscogsEffNetModelId);
+        json.Should().Contain(nameof(TrackAnalysis.Ai));
     }
 
     [Fact]
     public void TrackAnalysis_Should_Expose_CurrentSchemaVersion()
     {
         TrackAnalysis.CurrentSchemaVersion.Should().Be(ProductInfo.Version);
-        TrackAnalysis.CurrentSchemaVersion.Should().Be("1.0.0");
+        TrackAnalysis.CurrentSchemaVersion.Should().Be("1.1.0");
     }
 
     [Fact]

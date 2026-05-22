@@ -4,9 +4,11 @@ using EternalLoop.App.Navigation;
 using EternalLoop.App.Services;
 using EternalLoop.Contracts;
 using EternalLoop.Contracts.Abstractions;
+using EternalLoop.Contracts.Enums;
 using EternalLoop.Contracts.Models;
 using EternalLoop.Contracts.Options;
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 
 namespace EternalLoop.App.ViewModels;
@@ -43,6 +45,10 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool isTuningDirty;
     [ObservableProperty] private string tuningStatusText = "Tuning changes are applied manually.";
     [ObservableProperty] private string tuningGraphSummaryText = "No track loaded.";
+    [ObservableProperty] private bool useAiSimilarity;
+    [ObservableProperty] private string aiModeStatusText = "Local AI similarity is enabled.";
+    [ObservableProperty] private string aiModeDetailText = "Uses the bundled ONNX model to reduce weak musical branches.";
+    [ObservableProperty] private bool canReanalyzeCurrentTrack;
 
     public SettingsViewModel(
         IThemeService themeService,
@@ -154,6 +160,18 @@ public partial class SettingsViewModel : ObservableObject
 
     partial void OnFirstPassLinearPlaybackRatioChanged(double value) => MarkTuningDirty();
 
+    partial void OnUseAiSimilarityChanged(bool value)
+    {
+        if (_isLoadingTuning)
+        {
+            return;
+        }
+
+        _sessionState.Settings.UseAiSimilarity = value;
+        UpdateAiModeStatus();
+        MarkTuningDirty("AI mode changed. Applying tuning...");
+    }
+
     [RelayCommand]
     private void Back()
     {
@@ -187,11 +205,13 @@ public partial class SettingsViewModel : ObservableObject
             settings.JumpProbability = Math.Clamp(JumpProbability, 0.0, 1.0);
             settings.JumpCooldown = Math.Clamp(JumpCooldown, 0, 64);
             settings.FirstPassLinearPlaybackRatio = Math.Clamp(FirstPassLinearPlaybackRatio, 0.0, 0.95);
+            settings.UseAiSimilarity = UseAiSimilarity;
 
             var result = await _tuningService.ApplyAsync(CancellationToken.None);
             TuningStatusText = result.Message;
             IsTuningDirty = false;
             UpdateTuningGraphSummary();
+            UpdateAiModeStatus();
         }
         catch (Exception ex)
         {
@@ -208,6 +228,29 @@ public partial class SettingsViewModel : ObservableObject
     private void ResetBalanced()
     {
         SelectedPresetId = TuningPresetCatalog.BalancedId;
+    }
+
+    [RelayCommand]
+    private void ReanalyzeCurrentTrack()
+    {
+        if (_sessionState.CurrentResult is null)
+        {
+            TuningStatusText = "No track loaded to reanalyze.";
+            return;
+        }
+
+        var filePath = !string.IsNullOrWhiteSpace(_sessionState.SelectedFilePath)
+            ? _sessionState.SelectedFilePath
+            : _sessionState.CurrentResult.Analysis.Metadata.FilePath;
+
+        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+        {
+            TuningStatusText = "Original file was not found.";
+            return;
+        }
+
+        _sessionState.RequestReanalysis(filePath);
+        _navigationService.NavigateTo<AnalysisViewModel>();
     }
 
     [RelayCommand]
@@ -277,7 +320,9 @@ public partial class SettingsViewModel : ObservableObject
             JumpProbability = settings.JumpProbability;
             JumpCooldown = settings.JumpCooldown;
             FirstPassLinearPlaybackRatio = settings.FirstPassLinearPlaybackRatio;
+            UseAiSimilarity = settings.UseAiSimilarity;
             UpdatePresetDescription();
+            UpdateAiModeStatus();
             IsTuningDirty = false;
         }
         finally
@@ -301,13 +346,18 @@ public partial class SettingsViewModel : ObservableObject
 
     private void MarkTuningDirty()
     {
+        MarkTuningDirty("Applying tuning...");
+    }
+
+    private void MarkTuningDirty(string statusText)
+    {
         if (_isLoadingTuning)
         {
             return;
         }
 
         IsTuningDirty = true;
-        TuningStatusText = "Applying tuning...";
+        TuningStatusText = statusText;
         ScheduleAutoApplyTuning();
     }
 
@@ -345,7 +395,55 @@ public partial class SettingsViewModel : ObservableObject
         }
 
         var branches = result.Graph.JumpEdges.Sum(pair => pair.Value.Count);
-        TuningGraphSummaryText = $"Current track: {branches} branch(es) with the active tuning.";
+        var modeText = result.AiRun.Status switch
+        {
+            AiAnalysisRunStatus.FailedFallback => "Classic fallback after AI failure.",
+            _ when UseAiSimilarity => "AI mode enabled.",
+            _ => "Classic DSP mode."
+        };
+
+        TuningGraphSummaryText = $"Current track: {branches} branch(es). {modeText}";
+    }
+
+    private void UpdateAiModeStatus()
+    {
+        var result = _sessionState.CurrentResult;
+        if (result is null)
+        {
+            AiModeStatusText = UseAiSimilarity ? "AI mode is enabled." : "AI mode is disabled.";
+            AiModeDetailText = UseAiSimilarity
+                ? "The next track will run local AI similarity and cache beat embeddings."
+                : "The next track will use the faster classic DSP analysis only.";
+            CanReanalyzeCurrentTrack = false;
+            return;
+        }
+
+        CanReanalyzeCurrentTrack = true;
+
+        if (result.AiRun.FellBackToClassic)
+        {
+            AiModeStatusText = "AI fallback was used for this track.";
+            AiModeDetailText = "Local AI failed during analysis. The player is using classic DSP. Diagnostics remain available in the player.";
+            return;
+        }
+
+        if (result.Analysis.Ai is not null)
+        {
+            AiModeStatusText = UseAiSimilarity
+                ? "AI mode is enabled for this track."
+                : "AI mode is disabled for this track.";
+            AiModeDetailText = UseAiSimilarity
+                ? "The current loop graph can be rebuilt with cached AI beat embeddings."
+                : "Applying settings rebuilds the graph with classic DSP only. Cached AI data remains available.";
+            return;
+        }
+
+        AiModeStatusText = UseAiSimilarity
+            ? "AI mode is enabled, but this track has no AI embeddings yet."
+            : "AI mode is disabled for this track.";
+        AiModeDetailText = UseAiSimilarity
+            ? "Reanalyze the current track to generate local AI embeddings."
+            : "This track is using classic DSP analysis.";
     }
 
     private async Task SaveSettingsAsync()

@@ -35,7 +35,15 @@
                            TextAlignment="Center"
                            MaxWidth="500"
                            HorizontalAlignment="Center"
-                           Margin="0 12 0 30" />
+                           Margin="0 12 0 14" />
+
+                <TextBlock Text="{Binding AnalysisModeText}"
+                           Foreground="{StaticResource EL.Brush.Cyan}"
+                           FontWeight="SemiBold"
+                           TextAlignment="Center"
+                           MaxWidth="500"
+                           HorizontalAlignment="Center"
+                           Margin="0 0 0 24" />
 
                 <ProgressBar Value="{Binding OverallProgress}"
                              Minimum="0"
@@ -48,18 +56,24 @@
                            HorizontalAlignment="Center"
                            Margin="0 14 0 22" />
 
-                <UniformGrid Columns="4" Rows="1" Margin="0 0 0 26">
-                    <Border CornerRadius="16" Padding="12" Margin="0 0 8 0" Background="#14FFFFFF">
-                        <TextBlock Text="Loading" TextAlignment="Center" Foreground="{StaticResource EL.Brush.TextMuted}" />
+                <UniformGrid Columns="6" Rows="1" Margin="0 0 0 26">
+                    <Border CornerRadius="14" Padding="8" Margin="0 0 6 0" Background="#14FFFFFF">
+                        <TextBlock Text="Loading" FontSize="11" TextAlignment="Center" Foreground="{StaticResource EL.Brush.TextMuted}" />
                     </Border>
-                    <Border CornerRadius="16" Padding="12" Margin="0 0 8 0" Background="#14FFFFFF">
-                        <TextBlock Text="Finding rhythm" TextAlignment="Center" Foreground="{StaticResource EL.Brush.TextMuted}" />
+                    <Border CornerRadius="14" Padding="8" Margin="0 0 6 0" Background="#14FFFFFF">
+                        <TextBlock Text="Features" FontSize="11" TextAlignment="Center" Foreground="{StaticResource EL.Brush.TextMuted}" />
                     </Border>
-                    <Border CornerRadius="16" Padding="12" Margin="0 0 8 0" Background="#14FFFFFF">
-                        <TextBlock Text="Mapping loops" TextAlignment="Center" Foreground="{StaticResource EL.Brush.TextMuted}" />
+                    <Border CornerRadius="14" Padding="8" Margin="0 0 6 0" Background="#14FFFFFF">
+                        <TextBlock Text="Rhythm" FontSize="11" TextAlignment="Center" Foreground="{StaticResource EL.Brush.TextMuted}" />
                     </Border>
-                    <Border CornerRadius="16" Padding="12" Background="#14FFFFFF">
-                        <TextBlock Text="Almost ready" TextAlignment="Center" Foreground="{StaticResource EL.Brush.TextMuted}" />
+                    <Border CornerRadius="14" Padding="8" Margin="0 0 6 0" Background="#14FFFFFF">
+                        <TextBlock Text="Local AI" FontSize="11" TextAlignment="Center" Foreground="{StaticResource EL.Brush.TextMuted}" />
+                    </Border>
+                    <Border CornerRadius="14" Padding="8" Margin="0 0 6 0" Background="#14FFFFFF">
+                        <TextBlock Text="Loop map" FontSize="11" TextAlignment="Center" Foreground="{StaticResource EL.Brush.TextMuted}" />
+                    </Border>
+                    <Border CornerRadius="14" Padding="8" Background="#14FFFFFF">
+                        <TextBlock Text="Ready" FontSize="11" TextAlignment="Center" Foreground="{StaticResource EL.Brush.TextMuted}" />
                     </Border>
                 </UniformGrid>
 

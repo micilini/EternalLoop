@@ -9,6 +9,7 @@ namespace EternalLoop.Core.Persistence;
 public sealed class JsonSettingsRepository : ISettingsRepository
 {
     private const int CurrentSettingsSchemaVersion = TuningDefaultValues.SettingsSchemaVersion;
+    private const int TuningSettingsSchemaVersion = 2;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -81,7 +82,8 @@ public sealed class JsonSettingsRepository : ISettingsRepository
 
     private static UserSettings Normalize(UserSettings settings)
     {
-        var shouldMigrateTuning = settings.SettingsSchemaVersion < CurrentSettingsSchemaVersion;
+        var shouldMigrateTuning = settings.SettingsSchemaVersion < TuningSettingsSchemaVersion;
+        var shouldMigrateAi = settings.SettingsSchemaVersion < CurrentSettingsSchemaVersion;
 
         settings.Theme = settings.Theme switch
         {
@@ -102,6 +104,11 @@ public sealed class JsonSettingsRepository : ISettingsRepository
         {
             var preset = TuningPresetCatalog.GetById(settings.Preset);
             TuningOptionsMapper.ApplyPreset(settings, preset);
+        }
+
+        if (shouldMigrateAi)
+        {
+            settings.UseAiSimilarity = TuningDefaultValues.UseAiSimilarity;
             settings.SettingsSchemaVersion = CurrentSettingsSchemaVersion;
         }
 

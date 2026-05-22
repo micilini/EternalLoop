@@ -1,4 +1,5 @@
 using EternalLoop.Contracts.Models;
+using EternalLoop.Contracts.Options;
 using EternalLoop.Core.Similarity;
 using FluentAssertions;
 
@@ -246,6 +247,113 @@ public sealed class SelfSimilarityMatrixTests
     }
 
     [Fact]
+    public void Compute_WithTrackAnalysis_Should_MatchClassic_WhenAiDisabled()
+    {
+        var analysis = CreateAnalysisWithAi([1.0f, 0.0f], [0.0f, 1.0f]);
+        var options = CreateOptions(useAiSimilarity: false);
+        var classic = SelfSimilarityMatrix.Compute(analysis.Beats, options.TimbreWeight, options.PitchWeight, options.LoudnessWeight, options.BarPositionWeight);
+
+        var matrix = SelfSimilarityMatrix.Compute(analysis, options);
+
+        matrix[0, 1].Should().BeApproximately(classic[0, 1], 1e-6);
+    }
+
+    [Fact]
+    public void Compute_WithTrackAnalysis_Should_MatchClassic_WhenAiDataIsMissing()
+    {
+        var analysis = CreateAnalysis(ai: null);
+        var options = CreateOptions(useAiSimilarity: true);
+        var classic = SelfSimilarityMatrix.Compute(analysis.Beats, options.TimbreWeight, options.PitchWeight, options.LoudnessWeight, options.BarPositionWeight);
+
+        var matrix = SelfSimilarityMatrix.Compute(analysis, options);
+
+        matrix[0, 1].Should().BeApproximately(classic[0, 1], 1e-6);
+    }
+
+    [Fact]
+    public void Compute_WithTrackAnalysis_Should_NotBoost_WhenAiSimilarityIsHigh()
+    {
+        var analysis = CreateAnalysisWithAi([1.0f, 0.0f], [1.0f, 0.0f]);
+        var options = CreateOptions(useAiSimilarity: true);
+        var classic = SelfSimilarityMatrix.Compute(analysis.Beats, options.TimbreWeight, options.PitchWeight, options.LoudnessWeight, options.BarPositionWeight);
+
+        var matrix = SelfSimilarityMatrix.Compute(analysis, options);
+
+        matrix[0, 1].Should().BeApproximately(classic[0, 1], 1e-6);
+    }
+
+    [Fact]
+    public void Compute_WithTrackAnalysis_Should_Penalize_WhenAiSimilarityIsMedium()
+    {
+        var analysis = CreateAnalysisWithAi([1.0f, 0.0f], [0.65f, 0.760f]);
+        var options = CreateOptions(useAiSimilarity: true);
+        var classic = SelfSimilarityMatrix.Compute(analysis.Beats, options.TimbreWeight, options.PitchWeight, options.LoudnessWeight, options.BarPositionWeight);
+
+        var matrix = SelfSimilarityMatrix.Compute(analysis, options);
+
+        matrix[0, 1].Should().BeLessThan(classic[0, 1]);
+        matrix[0, 1].Should().BeGreaterThan(0.0);
+    }
+
+    [Fact]
+    public void Compute_WithTrackAnalysis_Should_Reject_WhenAiSimilarityIsLow()
+    {
+        var analysis = CreateAnalysisWithAi([1.0f, 0.0f], [0.0f, 1.0f]);
+        var matrix = SelfSimilarityMatrix.Compute(analysis, CreateOptions(useAiSimilarity: true));
+
+        matrix[0, 1].Should().Be(0.0);
+        matrix[1, 0].Should().Be(0.0);
+    }
+
+    [Fact]
+    public void Compute_WithTrackAnalysis_Should_UseBeatIndexMappingForAiEmbeddings()
+    {
+        var beats = new[]
+        {
+            CreateBeat(10, [1f, 0f], [1f, 0f]),
+            CreateBeat(20, [1f, 0f], [1f, 0f])
+        };
+        var analysis = CreateAnalysis(new AiAnalysisData
+        {
+            ModelId = AiModelDefaultValues.DiscogsEffNetModelId,
+            ModelVersion = AiModelDefaultValues.DiscogsEffNetVersion,
+            SampleRate = AiModelDefaultValues.DiscogsEffNetSampleRate,
+            EmbeddingDimensions = AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions,
+            BeatEmbeddings =
+            [
+                new AiBeatEmbedding { BeatIndex = 20, Vector = [0.0f, 1.0f] },
+                new AiBeatEmbedding { BeatIndex = 10, Vector = [1.0f, 0.0f] }
+            ]
+        }, beats);
+
+        var matrix = SelfSimilarityMatrix.Compute(analysis, CreateOptions(useAiSimilarity: true));
+
+        matrix[0, 1].Should().Be(0.0);
+    }
+
+    [Fact]
+    public void Compute_WithTrackAnalysis_Should_HandleMissingBeatEmbeddingsAsClassic()
+    {
+        var analysis = CreateAnalysis(new AiAnalysisData
+        {
+            ModelId = AiModelDefaultValues.DiscogsEffNetModelId,
+            ModelVersion = AiModelDefaultValues.DiscogsEffNetVersion,
+            SampleRate = AiModelDefaultValues.DiscogsEffNetSampleRate,
+            EmbeddingDimensions = AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions,
+            BeatEmbeddings =
+            [
+                new AiBeatEmbedding { BeatIndex = 0, Vector = [1.0f, 0.0f] }
+            ]
+        });
+        var options = CreateOptions(useAiSimilarity: true);
+        var classic = SelfSimilarityMatrix.Compute(analysis.Beats, options.TimbreWeight, options.PitchWeight, options.LoudnessWeight, options.BarPositionWeight);
+
+        var matrix = SelfSimilarityMatrix.Compute(analysis, options);
+
+        matrix[0, 1].Should().BeApproximately(classic[0, 1], 1e-6);
+    }
+
+    [Fact]
     public void Compute_Should_NormalizeFourWeights_WhenSumDiffersFromOne()
     {
         var beats = new[]
@@ -277,6 +385,60 @@ public sealed class SelfSimilarityMatrixTests
             Pitches = pitches,
             Loudness = loudness ?? [0f, 0f, 0f],
             BarPosition = barPosition ?? [0f, 0f]
+        };
+    }
+
+    private static BranchFindingOptions CreateOptions(bool useAiSimilarity)
+    {
+        return new BranchFindingOptions
+        {
+            UseAiSimilarity = useAiSimilarity,
+            TimbreWeight = 1.0,
+            PitchWeight = 0.0,
+            LoudnessWeight = 0.0,
+            BarPositionWeight = 0.0,
+            AiRejectionThreshold = 0.58,
+            AiPenaltyStartThreshold = 0.72,
+            AiPenaltyStrength = 0.22
+        };
+    }
+
+    private static TrackAnalysis CreateAnalysisWithAi(float[] firstEmbedding, float[] secondEmbedding)
+    {
+        return CreateAnalysis(new AiAnalysisData
+        {
+            ModelId = AiModelDefaultValues.DiscogsEffNetModelId,
+            ModelVersion = AiModelDefaultValues.DiscogsEffNetVersion,
+            SampleRate = AiModelDefaultValues.DiscogsEffNetSampleRate,
+            EmbeddingDimensions = AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions,
+            BeatEmbeddings =
+            [
+                new AiBeatEmbedding { BeatIndex = 0, Vector = firstEmbedding },
+                new AiBeatEmbedding { BeatIndex = 1, Vector = secondEmbedding }
+            ]
+        });
+    }
+
+    private static TrackAnalysis CreateAnalysis(AiAnalysisData? ai, IReadOnlyList<Beat>? beats = null)
+    {
+        return new TrackAnalysis
+        {
+            Metadata = new TrackMetadata
+            {
+                FileHash = "hash",
+                FilePath = "track.wav",
+                DurationSeconds = 1.0,
+                SampleRate = 22_050,
+                Tempo = 120.0,
+                TimeSignature = 4,
+                SchemaVersion = TrackAnalysis.CurrentSchemaVersion
+            },
+            Segments = [],
+            Beats = beats ?? [CreateBeat(0, [1f, 0f], [1f, 0f]), CreateBeat(1, [1f, 0f], [1f, 0f])],
+            Bars = [],
+            Tatums = [],
+            Sections = [],
+            Ai = ai
         };
     }
 }

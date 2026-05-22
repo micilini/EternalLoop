@@ -4,6 +4,7 @@ using EternalLoop.App.Navigation;
 using EternalLoop.App.Services;
 using EternalLoop.Contracts.Abstractions;
 using EternalLoop.Contracts.Enums;
+using EternalLoop.Contracts.Models;
 using EternalLoop.Contracts.Options;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -28,6 +29,7 @@ public partial class AnalysisViewModel : ObservableObject, IAnalysisProgressRepo
     [ObservableProperty] private bool isRunning;
     [ObservableProperty] private string? errorMessage;
     [ObservableProperty] private string friendlyProgressText = "Preparing track...";
+    [ObservableProperty] private string analysisModeText = "Classic DSP analysis";
     [ObservableProperty] private ObservableCollection<string> log = new();
 
     public AnalysisViewModel(
@@ -47,6 +49,10 @@ public partial class AnalysisViewModel : ObservableObject, IAnalysisProgressRepo
         {
             FileName = Path.GetFileName(_sessionState.SelectedFilePath);
         }
+
+        AnalysisModeText = _sessionState.Settings.UseAiSimilarity
+            ? "Local AI similarity is enabled for this analysis."
+            : "Local AI similarity is disabled. Using classic DSP analysis.";
     }
 
     public async Task StartAsync()
@@ -79,6 +85,10 @@ public partial class AnalysisViewModel : ObservableObject, IAnalysisProgressRepo
                 ReportOnUi("Refreshing", "Rebuilding the track analysis");
             }
 
+            ReportOnUi(
+                _sessionState.Settings.UseAiSimilarity ? "AI mode" : "Classic mode",
+                AnalysisModeText);
+
             var result = await Task.Run(
                 async () => await _pipeline.AnalyzeAsync(
                     filePath,
@@ -93,6 +103,7 @@ public partial class AnalysisViewModel : ObservableObject, IAnalysisProgressRepo
                 ReportOnUi("Cached", "Loaded saved analysis");
             }
 
+            ReportAiRunOutcome(result.AiRun);
             Report(AnalysisStage.Done, 1.0, "Preparing player");
 
             _engine.Load(result.Analysis, result.Graph);
@@ -132,9 +143,13 @@ public partial class AnalysisViewModel : ObservableObject, IAnalysisProgressRepo
             {
                 _ when message == "Loaded from cache" => "Your saved loop map is ready.",
                 _ when message == "Refreshing saved analysis" => "Refreshing your loop map...",
+                _ when string.Equals(message, "AI similarity failed. Using classic analysis.", StringComparison.Ordinal) => "AI unavailable. Continuing with classic analysis...",
+                _ when string.Equals(message, "AI similarity unavailable. Using classic analysis.", StringComparison.Ordinal) => "AI unavailable. Continuing with classic analysis...",
+                _ when string.Equals(message, "AI similarity is off. Using classic analysis.", StringComparison.Ordinal) => "Using classic analysis...",
                 AnalysisStage.Loading => "Preparing the track...",
                 AnalysisStage.ExtractingFeatures => "Listening for musical patterns...",
                 AnalysisStage.TrackingBeats => "Finding the rhythm...",
+                AnalysisStage.RunningAi => "Running local AI similarity...",
                 AnalysisStage.BuildingGraph => "Drawing loop paths...",
                 AnalysisStage.Done => "Almost ready...",
                 _ => "Preparing..."
@@ -164,12 +179,13 @@ public partial class AnalysisViewModel : ObservableObject, IAnalysisProgressRepo
             AnalysisStage.Loading => 0,
             AnalysisStage.ExtractingFeatures => 1,
             AnalysisStage.TrackingBeats => 2,
-            AnalysisStage.BuildingGraph => 3,
-            AnalysisStage.Done => 4,
+            AnalysisStage.RunningAi => 3,
+            AnalysisStage.BuildingGraph => 4,
+            AnalysisStage.Done => 5,
             _ => 0
         };
 
-        return Math.Clamp((stageIndex + Math.Clamp(progress01, 0, 1)) / 5.0, 0, 1);
+        return Math.Clamp((stageIndex + Math.Clamp(progress01, 0, 1)) / 6.0, 0, 1);
     }
 
     private void ReportOnUi(string stage, string message)
@@ -180,5 +196,19 @@ public partial class AnalysisViewModel : ObservableObject, IAnalysisProgressRepo
             CurrentMessage = message;
             Log.Add($"[{DateTime.Now:HH:mm:ss}] {stage}: {message}");
         });
+    }
+
+    private void ReportAiRunOutcome(AiAnalysisRunInfo run)
+    {
+        var message = run.Status switch
+        {
+            AiAnalysisRunStatus.Completed => "Local AI similarity completed.",
+            AiAnalysisRunStatus.LoadedFromCache => "Local AI similarity loaded from cache.",
+            AiAnalysisRunStatus.Disabled => "AI similarity disabled. Classic DSP analysis used.",
+            AiAnalysisRunStatus.FailedFallback => "Local AI failed. Classic DSP fallback used.",
+            _ => "Classic DSP analysis used."
+        };
+
+        ReportOnUi("AI result", message);
     }
 }

@@ -35,7 +35,11 @@ public static class TuningOptionsMapper
             LoudnessWeight = TuningDefaultValues.LoudnessWeight,
             BarPositionWeight = TuningDefaultValues.BarPositionWeight,
             ContinuationLookaheadDepth = TuningDefaultValues.PhraseValidationLookaheadDepth,
-            ContinuationThresholdMargin = TuningDefaultValues.PhraseValidationThresholdMargin
+            ContinuationThresholdMargin = TuningDefaultValues.PhraseValidationThresholdMargin,
+            UseAiSimilarity = settings.UseAiSimilarity,
+            AiRejectionThreshold = TuningDefaultValues.AiRejectionThreshold,
+            AiPenaltyStartThreshold = TuningDefaultValues.AiPenaltyStartThreshold,
+            AiPenaltyStrength = TuningDefaultValues.AiPenaltyStrength
         };
     }
 
@@ -69,6 +73,25 @@ public static class TuningOptionsMapper
             ForceJumpInEndGuard = true,
             RepeatedJumpAvoidancePasses = TuningDefaultValues.RepeatedJumpAvoidancePasses,
             AllowRepeatedJumpForTerminalEscape = true
+        };
+    }
+
+    public static AiAnalysisOptions ToAiAnalysisOptions(UserSettings settings)
+    {
+        if (settings is null)
+        {
+            throw new ArgumentNullException(nameof(settings));
+        }
+
+        return new AiAnalysisOptions
+        {
+            IsEnabled = settings.UseAiSimilarity,
+            ModelId = AiModelDefaultValues.DiscogsEffNetModelId,
+            RejectionThreshold = TuningDefaultValues.AiRejectionThreshold,
+            PenaltyStartThreshold = TuningDefaultValues.AiPenaltyStartThreshold,
+            PenaltyStrength = TuningDefaultValues.AiPenaltyStrength,
+            BeatContextBefore = TuningDefaultValues.AiBeatContextBefore,
+            BeatContextAfter = TuningDefaultValues.AiBeatContextAfter
         };
     }
 

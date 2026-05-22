@@ -14,7 +14,8 @@ public sealed class TuningOptionsMapperTests
             SimilarityThreshold = 0.72,
             LookaheadDepth = 2,
             MinJumpDistance = 8,
-            MaxBranchesPerBeat = 8
+            MaxBranchesPerBeat = 8,
+            UseAiSimilarity = false
         };
 
         var options = TuningOptionsMapper.ToBranchFindingOptions(settings);
@@ -30,6 +31,48 @@ public sealed class TuningOptionsMapperTests
         options.BarPositionWeight.Should().Be(0.18);
         options.ContinuationLookaheadDepth.Should().Be(6);
         options.ContinuationThresholdMargin.Should().Be(0.02);
+        options.UseAiSimilarity.Should().BeFalse();
+        options.AiRejectionThreshold.Should().Be(0.58);
+        options.AiPenaltyStartThreshold.Should().Be(0.72);
+        options.AiPenaltyStrength.Should().Be(0.22);
+    }
+
+    [Fact]
+    public void ToAiAnalysisOptions_Should_Map_UserSettings()
+    {
+        var settings = new UserSettings
+        {
+            UseAiSimilarity = false
+        };
+
+        var options = TuningOptionsMapper.ToAiAnalysisOptions(settings);
+
+        options.IsEnabled.Should().BeFalse();
+        options.ModelId.Should().Be(AiModelDefaultValues.DiscogsEffNetModelId);
+        options.RejectionThreshold.Should().Be(TuningDefaultValues.AiRejectionThreshold);
+        options.PenaltyStartThreshold.Should().Be(TuningDefaultValues.AiPenaltyStartThreshold);
+        options.PenaltyStrength.Should().Be(TuningDefaultValues.AiPenaltyStrength);
+        options.BeatContextBefore.Should().Be(TuningDefaultValues.AiBeatContextBefore);
+        options.BeatContextAfter.Should().Be(TuningDefaultValues.AiBeatContextAfter);
+    }
+
+    [Fact]
+    public void ToBranchFindingOptions_Uses_AiToggle_FromSettings()
+    {
+        var disabledSettings = new UserSettings
+        {
+            UseAiSimilarity = false
+        };
+        var enabledSettings = new UserSettings
+        {
+            UseAiSimilarity = true
+        };
+
+        var disabledOptions = TuningOptionsMapper.ToBranchFindingOptions(disabledSettings);
+        var enabledOptions = TuningOptionsMapper.ToBranchFindingOptions(enabledSettings);
+
+        disabledOptions.UseAiSimilarity.Should().BeFalse();
+        enabledOptions.UseAiSimilarity.Should().BeTrue();
     }
 
     [Fact]
