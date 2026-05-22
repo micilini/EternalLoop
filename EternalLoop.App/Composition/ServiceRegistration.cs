@@ -38,6 +38,7 @@ internal static class ServiceRegistration
         services.AddSingleton<AiMelSpectrogramExtractor>();
         services.AddSingleton<AiPatchExtractor>();
         services.AddSingleton<AiPatchBatcher>();
+        services.AddSingleton<IAiEmbeddingExtractor, AiEmbeddingExtractor>();
 
         services.AddSingleton<MainWindow>();
         services.AddSingleton<MainWindowViewModel>();
