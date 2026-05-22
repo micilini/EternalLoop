@@ -194,6 +194,8 @@ Any public, commercial, paid, store-distributed, or bundled release must validat
 
 EternalLoop uses ONNX Runtime CPU for local AI model inference. The Discogs-EffNet model files must exist under `Assets/Models/DiscogsEffNet`; run `.\tools\download-ai-models.ps1` before AI tests or publish. DirectML and GPU execution are not part of this version.
 
+The local AI foundation includes model assets, ONNX Runtime CPU loading, and deterministic preprocessing that prepares mel patches compatible with the packaged model.
+
 ## Screens
 
 EternalLoop currently includes these main screens:

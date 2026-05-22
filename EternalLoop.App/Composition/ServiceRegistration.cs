@@ -33,6 +33,11 @@ internal static class ServiceRegistration
         services.AddSingleton<AiModelManifestLoader>();
         services.AddSingleton<IAiModelProvider>(provider => provider.GetRequiredService<AiModelManifestLoader>());
         services.AddSingleton<ILocalMusicEmbeddingModel, OnnxMusicEmbeddingModel>();
+        services.AddSingleton<AiAudioPreprocessor>();
+        services.AddSingleton<AiMelFilterBank>();
+        services.AddSingleton<AiMelSpectrogramExtractor>();
+        services.AddSingleton<AiPatchExtractor>();
+        services.AddSingleton<AiPatchBatcher>();
 
         services.AddSingleton<MainWindow>();
         services.AddSingleton<MainWindowViewModel>();
