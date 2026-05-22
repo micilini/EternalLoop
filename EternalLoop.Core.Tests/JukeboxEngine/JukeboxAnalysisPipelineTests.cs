@@ -2,6 +2,7 @@ using EternalLoop.Contracts.Abstractions;
 using EternalLoop.Contracts.Enums;
 using EternalLoop.Contracts.Models;
 using EternalLoop.Contracts.Options;
+using EternalLoop.Core.AI;
 using EternalLoop.Core.JukeboxEngine;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -30,6 +31,63 @@ public sealed class JukeboxAnalysisPipelineTests
     }
 
     [Fact]
+    public async Task AnalyzeAsync_SavesAiData_WhenAiSimilarityIsEnabled()
+    {
+        var cache = new FakeTrackAnalysisCache();
+        var pipeline = CreatePipeline(cache: cache);
+
+        await pipeline.AnalyzeAsync("test.wav", new RecordingProgressReporter(), CancellationToken.None);
+
+        cache.Saved.Should().NotBeNull();
+        cache.Saved!.Ai.Should().NotBeNull();
+        cache.Saved.Ai!.BeatEmbeddings.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_SkipsAiData_WhenAiSimilarityIsDisabled()
+    {
+        var aiExtractor = new FakeAiEmbeddingExtractor();
+        var cache = new FakeTrackAnalysisCache();
+        var pipeline = CreatePipeline(cache: cache, aiEmbeddingExtractor: aiExtractor);
+
+        await pipeline.AnalyzeAsync(
+            "test.wav",
+            new RecordingProgressReporter(),
+            CancellationToken.None,
+            branchOptions: CreateBranchOptions(useAiSimilarity: false));
+
+        aiExtractor.CallCount.Should().Be(0);
+        cache.Saved.Should().NotBeNull();
+        cache.Saved!.Ai.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_ReportsRunningAi_WhenAiSimilarityIsEnabled()
+    {
+        var pipeline = CreatePipeline();
+        var progress = new RecordingProgressReporter();
+
+        await pipeline.AnalyzeAsync("test.wav", progress, CancellationToken.None);
+
+        progress.Stages.Should().Contain(AnalysisStage.RunningAi);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_DoesNotReportRunningAi_WhenAiSimilarityIsDisabled()
+    {
+        var pipeline = CreatePipeline();
+        var progress = new RecordingProgressReporter();
+
+        await pipeline.AnalyzeAsync(
+            "test.wav",
+            progress,
+            CancellationToken.None,
+            branchOptions: CreateBranchOptions(useAiSimilarity: false));
+
+        progress.Stages.Should().NotContain(AnalysisStage.RunningAi);
+    }
+
+    [Fact]
     public async Task AnalyzeAsync_Reports_All_Expected_Stages()
     {
         var pipeline = CreatePipeline();
@@ -40,6 +98,7 @@ public sealed class JukeboxAnalysisPipelineTests
         progress.Stages.Should().Contain(AnalysisStage.Loading);
         progress.Stages.Should().Contain(AnalysisStage.ExtractingFeatures);
         progress.Stages.Should().Contain(AnalysisStage.TrackingBeats);
+        progress.Stages.Should().Contain(AnalysisStage.RunningAi);
         progress.Stages.Should().Contain(AnalysisStage.BuildingGraph);
         progress.Stages.Should().Contain(AnalysisStage.Done);
     }
@@ -91,6 +150,62 @@ public sealed class JukeboxAnalysisPipelineTests
         cache.SaveCalls.Should().Be(0);
         result.LoadedFromCache.Should().BeTrue();
         result.Graph.Nodes.Should().HaveCount(result.Analysis.Beats.Count);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_UsesCachedAnalysisWithCompatibleAi_WhenAiSimilarityIsEnabled()
+    {
+        var aiExtractor = new FakeAiEmbeddingExtractor();
+        var cache = new FakeTrackAnalysisCache { Cached = CreateCachedAnalysis(includeAi: true) };
+        var pipeline = CreatePipeline(cache: cache, aiEmbeddingExtractor: aiExtractor);
+
+        var result = await pipeline.AnalyzeAsync("test.wav", new RecordingProgressReporter(), CancellationToken.None);
+
+        result.LoadedFromCache.Should().BeTrue();
+        aiExtractor.CallCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_IgnoresCachedAnalysisWithoutAi_WhenAiSimilarityIsEnabled()
+    {
+        var aiExtractor = new FakeAiEmbeddingExtractor();
+        var cache = new FakeTrackAnalysisCache { Cached = CreateCachedAnalysis(includeAi: false) };
+        var pipeline = CreatePipeline(cache: cache, aiEmbeddingExtractor: aiExtractor);
+
+        var result = await pipeline.AnalyzeAsync("test.wav", new RecordingProgressReporter(), CancellationToken.None);
+
+        result.LoadedFromCache.Should().BeFalse();
+        aiExtractor.CallCount.Should().Be(1);
+        cache.SaveCalls.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_UsesCachedAnalysisWithoutAi_WhenAiSimilarityIsDisabled()
+    {
+        var aiExtractor = new FakeAiEmbeddingExtractor();
+        var cache = new FakeTrackAnalysisCache { Cached = CreateCachedAnalysis(includeAi: false) };
+        var pipeline = CreatePipeline(cache: cache, aiEmbeddingExtractor: aiExtractor);
+
+        var result = await pipeline.AnalyzeAsync(
+            "test.wav",
+            new RecordingProgressReporter(),
+            CancellationToken.None,
+            branchOptions: CreateBranchOptions(useAiSimilarity: false));
+
+        result.LoadedFromCache.Should().BeTrue();
+        aiExtractor.CallCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_DoesNotExtractAiAgain_WhenCompatibleAiCacheExists()
+    {
+        var aiExtractor = new FakeAiEmbeddingExtractor();
+        var cache = new FakeTrackAnalysisCache { Cached = CreateCachedAnalysis(includeAi: true) };
+        var pipeline = CreatePipeline(cache: cache, aiEmbeddingExtractor: aiExtractor);
+
+        await pipeline.AnalyzeAsync("test.wav", new RecordingProgressReporter(), CancellationToken.None);
+
+        aiExtractor.CallCount.Should().Be(0);
     }
 
     [Fact]
@@ -208,7 +323,8 @@ public sealed class JukeboxAnalysisPipelineTests
         FakeFeatureExtractor? featureExtractor = null,
         FakeBeatTracker? beatTracker = null,
         FakeBranchFinder? branchFinder = null,
-        FakeTrackAnalysisCache? cache = null)
+        FakeTrackAnalysisCache? cache = null,
+        FakeAiEmbeddingExtractor? aiEmbeddingExtractor = null)
     {
         return new JukeboxAnalysisPipeline(
             audioLoader ?? new FakeAudioLoader(),
@@ -216,6 +332,8 @@ public sealed class JukeboxAnalysisPipelineTests
             beatTracker ?? new FakeBeatTracker(),
             branchFinder ?? new FakeBranchFinder(),
             cache ?? new FakeTrackAnalysisCache(),
+            aiEmbeddingExtractor ?? new FakeAiEmbeddingExtractor(),
+            new AiBeatEmbeddingAggregator(),
             NullLogger<JukeboxAnalysisPipeline>.Instance);
     }
 
@@ -236,7 +354,15 @@ public sealed class JukeboxAnalysisPipelineTests
             .ToArray();
     }
 
-    private static TrackAnalysis CreateCachedAnalysis()
+    private static BranchFindingOptions CreateBranchOptions(bool useAiSimilarity)
+    {
+        return new BranchFindingOptions
+        {
+            UseAiSimilarity = useAiSimilarity
+        };
+    }
+
+    private static TrackAnalysis CreateCachedAnalysis(bool includeAi = true)
     {
         return new TrackAnalysis
         {
@@ -266,7 +392,8 @@ public sealed class JukeboxAnalysisPipelineTests
                 .ToArray(),
             Bars = [],
             Tatums = [],
-            Sections = []
+            Sections = [],
+            Ai = includeAi ? CreateAiAnalysisData() : null
         };
     }
 
@@ -301,6 +428,25 @@ public sealed class JukeboxAnalysisPipelineTests
             Bars = [],
             Tatums = [],
             Sections = []
+        };
+    }
+
+    private static AiAnalysisData CreateAiAnalysisData()
+    {
+        return new AiAnalysisData
+        {
+            ModelId = AiModelDefaultValues.DiscogsEffNetModelId,
+            ModelVersion = AiModelDefaultValues.DiscogsEffNetVersion,
+            SampleRate = AiModelDefaultValues.DiscogsEffNetSampleRate,
+            EmbeddingDimensions = AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions,
+            BeatEmbeddings =
+            [
+                new AiBeatEmbedding
+                {
+                    BeatIndex = 0,
+                    Vector = CreateEmbeddingVector(1.0f)
+                }
+            ]
         };
     }
 
@@ -416,6 +562,51 @@ public sealed class JukeboxAnalysisPipelineTests
         {
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class FakeAiEmbeddingExtractor : IAiEmbeddingExtractor
+    {
+        public int CallCount { get; private set; }
+
+        public Task<AiEmbeddingExtractionResult> ExtractAsync(
+            LoadedAudio audio,
+            IAnalysisProgressReporter progressReporter,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+
+            return Task.FromResult(new AiEmbeddingExtractionResult
+            {
+                ModelId = AiModelDefaultValues.DiscogsEffNetModelId,
+                ModelVersion = AiModelDefaultValues.DiscogsEffNetVersion,
+                SampleRate = AiModelDefaultValues.DiscogsEffNetSampleRate,
+                EmbeddingDimensions = AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions,
+                Frames =
+                [
+                    new AiEmbeddingFrame
+                    {
+                        Index = 0,
+                        Start = 0.0,
+                        Duration = 0.5,
+                        Vector = CreateEmbeddingVector(1.0f)
+                    },
+                    new AiEmbeddingFrame
+                    {
+                        Index = 1,
+                        Start = 0.5,
+                        Duration = 0.5,
+                        Vector = CreateEmbeddingVector(2.0f)
+                    }
+                ]
+            });
+        }
+    }
+
+    private static float[] CreateEmbeddingVector(float value)
+    {
+        var vector = new float[AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions];
+        vector[0] = value;
+        return vector;
     }
 
     private sealed class RecordingProgressReporter : IAnalysisProgressReporter

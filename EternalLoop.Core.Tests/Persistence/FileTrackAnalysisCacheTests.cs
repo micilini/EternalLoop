@@ -1,4 +1,5 @@
 using EternalLoop.Contracts.Models;
+using EternalLoop.Contracts.Options;
 using EternalLoop.Core.Persistence;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -29,6 +30,26 @@ public sealed class FileTrackAnalysisCacheTests
         result.Should().NotBeNull();
         result!.Metadata.FileHash.Should().Be("hash");
         result.Beats.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task SaveAsync_ThenTryGetAsync_Should_RoundtripAiAnalysisData()
+    {
+        var cache = CreateCache(out _);
+        var analysis = CreateAnalysisWithAi("hash");
+
+        await cache.SaveAsync(analysis, CancellationToken.None);
+        var result = await cache.TryGetAsync("hash", CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result!.Ai.Should().NotBeNull();
+        result.Ai!.ModelId.Should().Be(AiModelDefaultValues.DiscogsEffNetModelId);
+        result.Ai.ModelVersion.Should().Be(AiModelDefaultValues.DiscogsEffNetVersion);
+        result.Ai.SampleRate.Should().Be(AiModelDefaultValues.DiscogsEffNetSampleRate);
+        result.Ai.EmbeddingDimensions.Should().Be(AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions);
+        result.Ai.BeatEmbeddings.Should().HaveCount(1);
+        result.Ai.BeatEmbeddings[0].BeatIndex.Should().Be(0);
+        result.Ai.BeatEmbeddings[0].Vector.Should().Equal(1.0f, 0.0f);
     }
 
     [Fact]
@@ -121,6 +142,35 @@ public sealed class FileTrackAnalysisCacheTests
             Bars = [],
             Tatums = [],
             Sections = []
+        };
+    }
+
+    private static TrackAnalysis CreateAnalysisWithAi(string hash)
+    {
+        var analysis = CreateAnalysis(hash);
+        return new TrackAnalysis
+        {
+            Metadata = analysis.Metadata,
+            Segments = analysis.Segments,
+            Beats = analysis.Beats,
+            Bars = analysis.Bars,
+            Tatums = analysis.Tatums,
+            Sections = analysis.Sections,
+            Ai = new AiAnalysisData
+            {
+                ModelId = AiModelDefaultValues.DiscogsEffNetModelId,
+                ModelVersion = AiModelDefaultValues.DiscogsEffNetVersion,
+                SampleRate = AiModelDefaultValues.DiscogsEffNetSampleRate,
+                EmbeddingDimensions = AiModelDefaultValues.DiscogsEffNetEmbeddingDimensions,
+                BeatEmbeddings =
+                [
+                    new AiBeatEmbedding
+                    {
+                        BeatIndex = 0,
+                        Vector = [1.0f, 0.0f]
+                    }
+                ]
+            }
         };
     }
 }
