@@ -15,13 +15,13 @@ public sealed class AiModelAssetTests
     private const string OnnxFileName = "discogs_track_embeddings-effnet-bs64-1.onnx";
     private const string MetadataFileName = "discogs_track_embeddings-effnet-bs64-1.json";
     private const string ExpectedModelId = "discogs-track-effnet-bs64-v1";
-    private const string ExpectedInputName = "serving_default_melspectrogram";
-    private const string ExpectedEmbeddingOutputName = "PartitionedCall:1";
+    private const string ExpectedInputName = "melspectrogram";
+    private const string ExpectedEmbeddingOutputName = "embeddings";
     private const string ExpectedLicense = "CC BY-NC-SA 4.0";
     private const int ExpectedBatchSize = 64;
     private const int ExpectedMelBands = 128;
     private const int ExpectedPatchFrames = 96;
-    private const int ExpectedEmbeddingDimensions = 1280;
+    private const int ExpectedEmbeddingDimensions = 512;
     private const int ExpectedSampleRate = 16000;
     private const long MinimumOnnxBytes = 10000000;
     private const long MinimumMetadataBytes = 1000;

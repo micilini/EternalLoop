@@ -4,6 +4,7 @@ using EternalLoop.App.ViewModels;
 using EternalLoop.App.Views;
 using EternalLoop.Contracts.Abstractions;
 using EternalLoop.Contracts.Options;
+using EternalLoop.Core.AI;
 using EternalLoop.Core.Analysis;
 using EternalLoop.Core.Audio;
 using EternalLoop.Core.BeatTracking;
@@ -28,6 +29,10 @@ internal static class ServiceRegistration
         services.AddSingleton<ITrackAnalysisCache, FileTrackAnalysisCache>();
         services.AddSingleton<ISettingsRepository, JsonSettingsRepository>();
         services.AddSingleton<ITuningService, TuningService>();
+        services.AddSingleton<AiModelPathResolver>();
+        services.AddSingleton<AiModelManifestLoader>();
+        services.AddSingleton<IAiModelProvider>(provider => provider.GetRequiredService<AiModelManifestLoader>());
+        services.AddSingleton<ILocalMusicEmbeddingModel, OnnxMusicEmbeddingModel>();
 
         services.AddSingleton<MainWindow>();
         services.AddSingleton<MainWindowViewModel>();

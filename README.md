@@ -192,6 +192,8 @@ The final app must not download the model at runtime. Release builds must packag
 
 Any public, commercial, paid, store-distributed, or bundled release must validate the model license before distribution.
 
+EternalLoop uses ONNX Runtime CPU for local AI model inference. The Discogs-EffNet model files must exist under `Assets/Models/DiscogsEffNet`; run `.\tools\download-ai-models.ps1` before AI tests or publish. DirectML and GPU execution are not part of this version.
+
 ## Screens
 
 EternalLoop currently includes these main screens:
