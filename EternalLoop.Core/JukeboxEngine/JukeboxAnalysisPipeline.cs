@@ -97,6 +97,7 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
 
                     progressReporter.Report(AnalysisStage.BuildingGraph, 0.0, "Loading loop map");
                     var cachedGraph = BuildGraph(cachedAnalysis, effectiveBranchOptions);
+                    BranchQualityDiagnosticWriter.WriteIfEnabled(cachedAnalysis, cachedGraph, effectiveBranchOptions);
                     progressReporter.Report(AnalysisStage.BuildingGraph, 1.0, "Loop map ready");
                     progressReporter.Report(AnalysisStage.Done, 1.0, "Loaded from cache");
 
@@ -148,6 +149,11 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
         }
 
         progressReporter.Report(AnalysisStage.TrackingBeats, 1.0, $"Detected {beats.Count} beats");
+        var microFingerprints = ExtractMicroFingerprints(
+            beats,
+            features,
+            audio.SampleRate,
+            effectiveBranchOptions);
 
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -162,9 +168,10 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
         cancellationToken.ThrowIfCancellationRequested();
 
         progressReporter.Report(AnalysisStage.BuildingGraph, 0.0, "Building graph");
-        var analysis = BuildAnalysis(filePath, audio, beatTracking, features, beats, aiResult.Data);
+        var analysis = BuildAnalysis(filePath, audio, beatTracking, features, beats, microFingerprints, aiResult.Data);
         await _cache.SaveAsync(analysis, cancellationToken).ConfigureAwait(false);
         var graph = BuildGraph(analysis, effectiveBranchOptions);
+        BranchQualityDiagnosticWriter.WriteIfEnabled(analysis, graph, effectiveBranchOptions);
         progressReporter.Report(AnalysisStage.BuildingGraph, 1.0, $"Built {graph.JumpEdges.Sum(pair => pair.Value.Count)} jump edges");
 
         progressReporter.Report(AnalysisStage.Done, 1.0, "Analysis complete");
@@ -212,6 +219,7 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
         BeatTrackingResult beatTracking,
         FeatureMatrix features,
         IReadOnlyList<Beat> beats,
+        IReadOnlyList<BeatMicroFingerprint> microFingerprints,
         AiAnalysisData? aiData)
     {
         return new TrackAnalysis
@@ -232,8 +240,28 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
             Bars = BuildBars(beats, DefaultTimeSignature),
             Tatums = BuildTatums(beats),
             Sections = BuildSections(audio, beatTracking.EstimatedBpm),
+            MicroFingerprints = microFingerprints,
             Ai = aiData
         };
+    }
+
+    private static IReadOnlyList<BeatMicroFingerprint> ExtractMicroFingerprints(
+        IReadOnlyList<Beat> beats,
+        FeatureMatrix features,
+        int sampleRate,
+        BranchFindingOptions options)
+    {
+        if (!options.UseMicrosegmentSimilarity)
+        {
+            return [];
+        }
+
+        var microsegmentCount = Math.Clamp(
+            Math.Max(options.MicrosegmentCount, TuningDefaultValues.MicrosegmentCount),
+            TuningDefaultValues.MinMicrosegmentCount,
+            TuningDefaultValues.MaxMicrosegmentCount);
+
+        return BeatMicrosegmentExtractor.Extract(beats, features, sampleRate, microsegmentCount);
     }
 
     private async Task<AiExtractionPipelineResult> ExtractAiDataAsync(
@@ -375,6 +403,11 @@ public sealed class JukeboxAnalysisPipeline : IJukeboxAnalysisPipeline
 
     private static bool CanUseCachedAnalysis(TrackAnalysis analysis, BranchFindingOptions options)
     {
+        if (options.UseMicrosegmentSimilarity && analysis.MicroFingerprints.Count == 0)
+        {
+            return false;
+        }
+
         if (!options.UseAiSimilarity)
         {
             return true;

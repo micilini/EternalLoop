@@ -8,7 +8,8 @@ namespace EternalLoop.Core.Tests.Release;
 public sealed class ReleaseReadinessTests
 {
     private const string ExpectedVersion = "1.1.0";
-    private const string ExpectedDisplayVersion = "v1.1.0";
+    private const string ExpectedProductVersion = "1.2.0";
+    private const string ExpectedProductDisplayVersion = "v1.2.0";
     private const string ExpectedInputName = "melspectrogram";
     private const string ExpectedOutputName = "embeddings";
     private const int ExpectedEmbeddingDimensions = 512;
@@ -21,10 +22,10 @@ public sealed class ReleaseReadinessTests
     private const string NoticeFileName = "MODEL-LICENSE-NOTICE.txt";
 
     [Fact]
-    public void ProductInfo_reports_v1_1_0()
+    public void ProductInfo_reports_v1_2_0()
     {
-        ProductInfo.Version.Should().Be(ExpectedVersion);
-        ProductInfo.DisplayVersion.Should().Be(ExpectedDisplayVersion);
+        ProductInfo.Version.Should().Be(ExpectedProductVersion);
+        ProductInfo.DisplayVersion.Should().Be(ExpectedProductDisplayVersion);
     }
 
     [Fact]

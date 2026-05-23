@@ -15,5 +15,12 @@ publish/
 *.flac
 *.m4a
 *.aac
+/audio.mp3
+/infinite-jukebox-gangnam.svg
+/gangnam-branch-calibration/
+/artifacts/gangnam-calibration/
+*.branch-calibration.csv
+*.branch-calibration.md
+*.branch-calibration.json
 EternalLoop.App/Assets/Models/DiscogsEffNet/discogs_track_embeddings-effnet-bs64-1.onnx
 EternalLoop.App/Assets/Models/DiscogsEffNet/discogs_track_embeddings-effnet-bs64-1.json

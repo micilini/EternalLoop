@@ -41,6 +41,28 @@ public sealed class TrackAnalysisContractTests
             Bars = Array.Empty<Bar>(),
             Tatums = Array.Empty<Tatum>(),
             Sections = Array.Empty<Section>(),
+            MicroFingerprints =
+            [
+                new BeatMicroFingerprint
+                {
+                    BeatIndex = 0,
+                    Microsegments =
+                    [
+                        new BeatMicrosegment
+                        {
+                            BeatIndex = 0,
+                            SegmentIndex = 0,
+                            Start = 0.0,
+                            Duration = 0.125,
+                            RelativePosition = 0f,
+                            Timbre = [1f],
+                            Pitches = [1f],
+                            Loudness = [0f, 0f, 0f],
+                            Flux = 0.1f
+                        }
+                    ]
+                }
+            ],
             Ai = new AiAnalysisData
             {
                 ModelId = AiModelDefaultValues.DiscogsEffNetModelId,
@@ -65,13 +87,57 @@ public sealed class TrackAnalysisContractTests
         json.Should().Contain(TrackAnalysis.CurrentSchemaVersion);
         json.Should().Contain(AiModelDefaultValues.DiscogsEffNetModelId);
         json.Should().Contain(nameof(TrackAnalysis.Ai));
+        json.Should().Contain(nameof(TrackAnalysis.MicroFingerprints));
     }
 
     [Fact]
-    public void TrackAnalysis_Should_Expose_CurrentSchemaVersion()
+    public void TrackAnalysis_schema_version_is_1_2_0()
     {
         TrackAnalysis.CurrentSchemaVersion.Should().Be(ProductInfo.Version);
-        TrackAnalysis.CurrentSchemaVersion.Should().Be("1.1.0");
+        TrackAnalysis.CurrentSchemaVersion.Should().Be("1.2.0");
+    }
+
+    [Fact]
+    public void TrackAnalysis_Should_SerializeAndDeserializeMicroFingerprints()
+    {
+        var analysis = CreateAnalysisWithMicroFingerprints();
+
+        var json = JsonSerializer.Serialize(analysis);
+        var roundtrip = JsonSerializer.Deserialize<TrackAnalysis>(json);
+
+        roundtrip.Should().NotBeNull();
+        roundtrip!.MicroFingerprints.Should().HaveCount(1);
+        roundtrip.MicroFingerprints[0].Microsegments.Should().HaveCount(1);
+        roundtrip.MicroFingerprints[0].Microsegments[0].Flux.Should().Be(0.1f);
+    }
+
+    [Fact]
+    public void TrackAnalysis_Should_DefaultMicroFingerprintsToEmptyList()
+    {
+        var json = """
+            {
+              "Metadata": {
+                "FileHash": "hash",
+                "FilePath": "track.wav",
+                "DurationSeconds": 1.0,
+                "SampleRate": 22050,
+                "Tempo": 120,
+                "TimeSignature": 4,
+                "SchemaVersion": "1.2.0"
+              },
+              "Segments": [],
+              "Beats": [],
+              "Bars": [],
+              "Tatums": [],
+              "Sections": []
+            }
+            """;
+
+        var analysis = JsonSerializer.Deserialize<TrackAnalysis>(json);
+
+        analysis.Should().NotBeNull();
+        analysis!.MicroFingerprints.Should().NotBeNull();
+        analysis.MicroFingerprints.Should().BeEmpty();
     }
 
     [Fact]
@@ -110,5 +176,49 @@ public sealed class TrackAnalysisContractTests
 
         beat.BarPosition.Should().NotBeNull();
         beat.BarPosition.Length.Should().Be(2);
+    }
+
+    private static TrackAnalysis CreateAnalysisWithMicroFingerprints()
+    {
+        return new TrackAnalysis
+        {
+            Metadata = new TrackMetadata
+            {
+                FileHash = "abc123",
+                FilePath = "track.wav",
+                DurationSeconds = 1.0,
+                SampleRate = 22_050,
+                Tempo = 120,
+                TimeSignature = 4,
+                SchemaVersion = TrackAnalysis.CurrentSchemaVersion
+            },
+            Segments = [],
+            Beats = [],
+            Bars = [],
+            Tatums = [],
+            Sections = [],
+            MicroFingerprints =
+            [
+                new BeatMicroFingerprint
+                {
+                    BeatIndex = 0,
+                    Microsegments =
+                    [
+                        new BeatMicrosegment
+                        {
+                            BeatIndex = 0,
+                            SegmentIndex = 0,
+                            Start = 0.0,
+                            Duration = 0.125,
+                            RelativePosition = 0f,
+                            Timbre = [1f],
+                            Pitches = [1f],
+                            Loudness = [0f, 0f, 0f],
+                            Flux = 0.1f
+                        }
+                    ]
+                }
+            ]
+        };
     }
 }

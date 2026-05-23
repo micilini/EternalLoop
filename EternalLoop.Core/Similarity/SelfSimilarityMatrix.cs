@@ -25,7 +25,26 @@ public static class SelfSimilarityMatrix
             loudnessWeight,
             barPositionWeight,
             null,
+            null,
             null);
+    }
+
+    public static double[,] Compute(
+        IReadOnlyList<Beat> beats,
+        BranchFindingOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(beats);
+        ArgumentNullException.ThrowIfNull(options);
+
+        return ComputeInternal(
+            beats,
+            options.TimbreWeight,
+            options.PitchWeight,
+            options.LoudnessWeight,
+            options.BarPositionWeight,
+            null,
+            null,
+            options);
     }
 
     public static double[,] Compute(TrackAnalysis analysis, BranchFindingOptions options)
@@ -36,6 +55,9 @@ public static class SelfSimilarityMatrix
         var embeddings = options.UseAiSimilarity
             ? analysis.Ai?.BeatEmbeddings.ToDictionary(embedding => embedding.BeatIndex, embedding => embedding.Vector)
             : null;
+        var microFingerprints = options.UseMicrosegmentSimilarity
+            ? analysis.MicroFingerprints.ToDictionary(fingerprint => fingerprint.BeatIndex)
+            : null;
 
         return ComputeInternal(
             analysis.Beats,
@@ -44,6 +66,7 @@ public static class SelfSimilarityMatrix
             options.LoudnessWeight,
             options.BarPositionWeight,
             embeddings,
+            microFingerprints,
             options);
     }
 
@@ -54,6 +77,7 @@ public static class SelfSimilarityMatrix
         double loudnessWeight,
         double barPositionWeight,
         IReadOnlyDictionary<int, float[]>? aiEmbeddings,
+        IReadOnlyDictionary<int, BeatMicroFingerprint>? microFingerprints,
         BranchFindingOptions? options)
     {
         if (beats.Count == 0)
@@ -84,8 +108,23 @@ public static class SelfSimilarityMatrix
                     0.0,
                     1.0);
 
-                var metricPenalty = 1.0 - (metricPenaltyStrength * (1.0 - barPosition));
-                var score = Math.Clamp(baseScore * metricPenalty, 0.0, 1.0);
+                double score;
+
+                if (options is null)
+                {
+                    var metricPenalty = 1.0 - (metricPenaltyStrength * (1.0 - barPosition));
+                    score = Math.Clamp(baseScore * metricPenalty, 0.0, 1.0);
+                }
+                else
+                {
+                    _ = MetricPositionGate.TryApply(
+                        baseScore,
+                        barPosition,
+                        options.MetricPositionMode,
+                        options.MetricPositionPenaltyStrength,
+                        options.MetricPositionRejectionThreshold,
+                        out score);
+                }
 
                 if (useAi &&
                     aiEmbeddings!.TryGetValue(beats[i].Index, out var sourceEmbedding) &&
@@ -98,6 +137,45 @@ public static class SelfSimilarityMatrix
                         options!.AiRejectionThreshold,
                         options.AiPenaltyStartThreshold,
                         options.AiPenaltyStrength,
+                        out score);
+                }
+
+                if (options?.UseDurationSimilarityGate == true)
+                {
+                    _ = BeatDurationSimilarityGate.TryApply(
+                        score,
+                        beats[i].Duration,
+                        beats[j].Duration,
+                        options.DurationPenaltyStartRatio,
+                        options.DurationRejectionRatio,
+                        options.DurationPenaltyStrength,
+                        out score);
+                }
+
+                if (options?.UseConfidencePenalty == true)
+                {
+                    score = BeatConfidencePenalty.Apply(
+                        score,
+                        beats[i].Confidence,
+                        beats[j].Confidence,
+                        options.ConfidencePenaltyStart,
+                        options.ConfidenceRejectionThreshold,
+                        options.ConfidencePenaltyStrength);
+                }
+
+                if (options?.UseMicrosegmentSimilarity == true && microFingerprints is { Count: > 0 })
+                {
+                    microFingerprints.TryGetValue(beats[i].Index, out var sourceFingerprint);
+                    microFingerprints.TryGetValue(beats[j].Index, out var destinationFingerprint);
+
+                    _ = MicrosegmentSimilarityGate.TryApply(
+                        score,
+                        sourceFingerprint,
+                        destinationFingerprint,
+                        options.MicrosegmentCount,
+                        options.MicrosegmentPenaltyStartThreshold,
+                        options.MicrosegmentRejectionThreshold,
+                        options.MicrosegmentPenaltyStrength,
                         out score);
                 }
 

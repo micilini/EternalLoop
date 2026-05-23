@@ -12,6 +12,8 @@ public static class TuningOptionsMapper
             throw new ArgumentNullException(nameof(settings));
         }
 
+        var preset = TuningPresetCatalog.GetById(settings.Preset);
+
         return new BranchFindingOptions
         {
             SimilarityThreshold = Clamp(
@@ -34,12 +36,94 @@ public static class TuningOptionsMapper
             PitchWeight = TuningDefaultValues.PitchWeight,
             LoudnessWeight = TuningDefaultValues.LoudnessWeight,
             BarPositionWeight = TuningDefaultValues.BarPositionWeight,
-            ContinuationLookaheadDepth = TuningDefaultValues.PhraseValidationLookaheadDepth,
-            ContinuationThresholdMargin = TuningDefaultValues.PhraseValidationThresholdMargin,
+            ContinuationLookaheadDepth = Clamp(
+                preset.ContinuationLookaheadDepth,
+                TuningDefaultValues.MinLookaheadDepth,
+                TuningDefaultValues.MaxLookaheadDepth),
+            ContinuationThresholdMargin = Clamp(
+                preset.ContinuationThresholdMargin,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            AnchorLookaheadPassRatio = Clamp(
+                preset.AnchorLookaheadPassRatio,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            AnchorLookaheadDropTolerance = Clamp(
+                preset.AnchorLookaheadDropTolerance,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            ContinuationLookaheadPassRatio = Clamp(
+                preset.ContinuationLookaheadPassRatio,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            ContinuationLookaheadDropTolerance = Clamp(
+                preset.ContinuationLookaheadDropTolerance,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
             UseAiSimilarity = settings.UseAiSimilarity,
             AiRejectionThreshold = TuningDefaultValues.AiRejectionThreshold,
             AiPenaltyStartThreshold = TuningDefaultValues.AiPenaltyStartThreshold,
-            AiPenaltyStrength = TuningDefaultValues.AiPenaltyStrength
+            AiPenaltyStrength = TuningDefaultValues.AiPenaltyStrength,
+            UseDurationSimilarityGate = preset.UseDurationSimilarityGate,
+            DurationPenaltyStartRatio = Clamp(
+                preset.DurationPenaltyStartRatio,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            DurationRejectionRatio = Clamp(
+                preset.DurationRejectionRatio,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            DurationPenaltyStrength = Clamp(
+                preset.DurationPenaltyStrength,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            UseConfidencePenalty = preset.UseConfidencePenalty,
+            ConfidencePenaltyStart = Clamp(
+                preset.ConfidencePenaltyStart,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            ConfidenceRejectionThreshold = Clamp(
+                preset.ConfidenceRejectionThreshold,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            ConfidencePenaltyStrength = Clamp(
+                preset.ConfidencePenaltyStrength,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            MetricPositionMode = preset.MetricPositionMode,
+            MetricPositionPenaltyStrength = Clamp(
+                preset.MetricPositionPenaltyStrength,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            MetricPositionRejectionThreshold = Clamp(
+                preset.MetricPositionRejectionThreshold,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            TargetBranchSourceRatio = Clamp(
+                preset.TargetBranchSourceRatio,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            MaxBranchSourceRatio = Clamp(
+                preset.MaxBranchSourceRatio,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            UseMicrosegmentSimilarity = preset.UseMicrosegmentSimilarity,
+            MicrosegmentCount = Clamp(
+                preset.MicrosegmentCount,
+                TuningDefaultValues.MinMicrosegmentCount,
+                TuningDefaultValues.MaxMicrosegmentCount),
+            MicrosegmentPenaltyStartThreshold = Clamp(
+                preset.MicrosegmentPenaltyStartThreshold,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            MicrosegmentRejectionThreshold = Clamp(
+                preset.MicrosegmentRejectionThreshold,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability),
+            MicrosegmentPenaltyStrength = Clamp(
+                preset.MicrosegmentPenaltyStrength,
+                TuningDefaultValues.MinProbability,
+                TuningDefaultValues.MaxProbability)
         };
     }
 

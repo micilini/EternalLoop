@@ -19,5 +19,7 @@ public sealed class TrackAnalysis
 
     public required IReadOnlyList<Section> Sections { get; init; }
 
+    public IReadOnlyList<BeatMicroFingerprint> MicroFingerprints { get; init; } = [];
+
     public AiAnalysisData? Ai { get; init; }
 }

@@ -53,10 +53,36 @@ public sealed class FileTrackAnalysisCacheTests
     }
 
     [Fact]
+    public async Task Cache_roundtrips_microfingerprints()
+    {
+        var cache = CreateCache(out _);
+        var analysis = CreateAnalysis("hash");
+
+        await cache.SaveAsync(analysis, CancellationToken.None);
+        var result = await cache.TryGetAsync("hash", CancellationToken.None);
+
+        result.Should().NotBeNull();
+        result!.MicroFingerprints.Should().HaveCount(1);
+        result.MicroFingerprints[0].Microsegments.Should().HaveCount(1);
+        result.MicroFingerprints[0].Microsegments[0].Flux.Should().Be(0.1f);
+    }
+
+    [Fact]
     public async Task TryGetAsync_Should_IgnoreOldSchema()
     {
         var cache = CreateCache(out _);
         await cache.SaveAsync(CreateAnalysis("hash", schemaVersion: "0.1"), CancellationToken.None);
+
+        var result = await cache.TryGetAsync("hash", CancellationToken.None);
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Cache_rejects_old_schema_after_v1_2_0_bump()
+    {
+        var cache = CreateCache(out _);
+        await cache.SaveAsync(CreateAnalysis("hash", schemaVersion: "1.1.0"), CancellationToken.None);
 
         var result = await cache.TryGetAsync("hash", CancellationToken.None);
 
@@ -141,7 +167,29 @@ public sealed class FileTrackAnalysisCacheTests
             ],
             Bars = [],
             Tatums = [],
-            Sections = []
+            Sections = [],
+            MicroFingerprints =
+            [
+                new BeatMicroFingerprint
+                {
+                    BeatIndex = 0,
+                    Microsegments =
+                    [
+                        new BeatMicrosegment
+                        {
+                            BeatIndex = 0,
+                            SegmentIndex = 0,
+                            Start = 0.0,
+                            Duration = 0.125,
+                            RelativePosition = 0f,
+                            Timbre = [1f],
+                            Pitches = [1f],
+                            Loudness = [0f, 0f, 0f],
+                            Flux = 0.1f
+                        }
+                    ]
+                }
+            ]
         };
     }
 
@@ -156,6 +204,7 @@ public sealed class FileTrackAnalysisCacheTests
             Bars = analysis.Bars,
             Tatums = analysis.Tatums,
             Sections = analysis.Sections,
+            MicroFingerprints = analysis.MicroFingerprints,
             Ai = new AiAnalysisData
             {
                 ModelId = AiModelDefaultValues.DiscogsEffNetModelId,
