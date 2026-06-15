@@ -110,6 +110,17 @@ public sealed class BeatScheduledSampleProvider : ISampleProvider
         ? _audio.DurationSeconds
         : SampleToSeconds(_totalSamples);
 
+    public bool IsCompleted
+    {
+        get
+        {
+            lock (_sync)
+            {
+                return _completed;
+            }
+        }
+    }
+
     public int Read(float[] buffer, int offset, int count)
     {
         ArgumentNullException.ThrowIfNull(buffer);

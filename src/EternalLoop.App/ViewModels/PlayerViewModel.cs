@@ -167,8 +167,23 @@ public sealed class PlayerViewModel : INotifyPropertyChanged, IDisposable
     public bool IsBringItHomeEnabled
     {
         get => _isBringItHomeEnabled;
-        private set => SetProperty(ref _isBringItHomeEnabled, value);
+        private set
+        {
+            if (SetProperty(ref _isBringItHomeEnabled, value))
+            {
+                OnPropertyChanged(nameof(BringItHomeToolTip));
+                OnPropertyChanged(nameof(BringItHomeStatusText));
+            }
+        }
     }
+
+    public string BringItHomeToolTip => IsBringItHomeEnabled
+        ? "Bring It Home is ON: EternalLoop will stop jumping and finish the track."
+        : "Bring It Home is OFF: click to let this loop finish naturally.";
+
+    public string BringItHomeStatusText => IsBringItHomeEnabled
+        ? "Finish mode: ON"
+        : "Finish mode: OFF";
 
     public string PositionText
     {
@@ -448,6 +463,7 @@ public sealed class PlayerViewModel : INotifyPropertyChanged, IDisposable
 
         PositionSeconds = target;
         CurrentBeatIndex = _player?.CurrentBeatIndex ?? FindBeatIndex(target);
+        IsBringItHomeEnabled = false;
         _isSeeking = false;
     }
 

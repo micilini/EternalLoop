@@ -49,7 +49,7 @@ public sealed class LoopTuningImpactClassifierTests
                 current.MinJumpDistance = 8;
                 break;
             case "MaxBranchesPerBeat":
-                current.MaxBranchesPerBeat = 6;
+                current.MaxBranchesPerBeat = 8;
                 break;
             case "BranchQuantumType":
                 current.BranchQuantumType = "segments";

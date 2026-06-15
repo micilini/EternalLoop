@@ -33,7 +33,7 @@ public sealed class LoopTuningOptionsMapperTests
             quiet: true);
 
         options.QuantumType.Should().Be("beats");
-        options.MaxBranches.Should().Be(4);
+        options.MaxBranches.Should().Be(6);
         options.MaxThreshold.Should().Be(80);
         options.SimilarityThreshold.Should().Be(0.86);
         options.LookaheadDepth.Should().Be(1);

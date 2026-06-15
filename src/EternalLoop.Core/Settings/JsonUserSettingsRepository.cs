@@ -184,7 +184,12 @@ public sealed class JsonUserSettingsRepository : IUserSettingsRepository
             normalized.Tuning = LoopTuningSettings.Balanced();
         }
 
-        normalized.SettingsSchemaVersion = Math.Max(4, normalized.SettingsSchemaVersion);
+        if (originalSchemaVersion < 5 && normalized.Tuning is not null)
+        {
+            normalized.Tuning = MigrateM18PresetDefaults(normalized.Tuning);
+        }
+
+        normalized.SettingsSchemaVersion = Math.Max(5, normalized.SettingsSchemaVersion);
         normalized.Tuning = Normalize(normalized.Tuning);
 
         return normalized;
@@ -229,6 +234,71 @@ public sealed class JsonUserSettingsRepository : IUserSettingsRepository
             && tuning.MinJumpDistance == 20
             && tuning.MaxBranchesPerBeat == 4
             && tuning.BranchMaxThreshold == 80;
+    }
+
+    private static LoopTuningSettings MigrateM18PresetDefaults(LoopTuningSettings tuning)
+    {
+        if (LooksLikeM18ConservativeTuning(tuning))
+        {
+            return PresetSettings(LoopTuningPresetCatalog.ConservativeId);
+        }
+
+        if (LooksLikeM18BalancedTuning(tuning))
+        {
+            return PresetSettings(LoopTuningPresetCatalog.BalancedId);
+        }
+
+        if (LooksLikeM18WildTuning(tuning))
+        {
+            return PresetSettings(LoopTuningPresetCatalog.WildId);
+        }
+
+        return tuning;
+    }
+
+    private static LoopTuningSettings PresetSettings(string presetId)
+    {
+        var settings = new LoopTuningSettings();
+        LoopTuningPresetCatalog.ApplyPreset(
+            settings,
+            LoopTuningPresetCatalog.GetById(presetId));
+        return settings;
+    }
+
+    private static bool LooksLikeM18ConservativeTuning(LoopTuningSettings tuning)
+    {
+        return string.Equals(tuning.Preset, LoopTuningPresetCatalog.ConservativeId, StringComparison.OrdinalIgnoreCase)
+            && NearlyEquals(tuning.SimilarityThreshold, 0.92)
+            && tuning.LookaheadDepth == 2
+            && tuning.MinJumpDistance == 16
+            && tuning.MaxBranchesPerBeat == 2
+            && NearlyEquals(tuning.JumpProbability, 0.14)
+            && tuning.JumpCooldown == 16
+            && NearlyEquals(tuning.FirstPassLinearPlaybackRatio, 0.82);
+    }
+
+    private static bool LooksLikeM18BalancedTuning(LoopTuningSettings tuning)
+    {
+        return string.Equals(tuning.Preset, LoopTuningPresetCatalog.BalancedId, StringComparison.OrdinalIgnoreCase)
+            && NearlyEquals(tuning.SimilarityThreshold, 0.86)
+            && tuning.LookaheadDepth == 1
+            && tuning.MinJumpDistance == 4
+            && tuning.MaxBranchesPerBeat == 4
+            && NearlyEquals(tuning.JumpProbability, 0.22)
+            && tuning.JumpCooldown == 12
+            && NearlyEquals(tuning.FirstPassLinearPlaybackRatio, 0.78);
+    }
+
+    private static bool LooksLikeM18WildTuning(LoopTuningSettings tuning)
+    {
+        return string.Equals(tuning.Preset, LoopTuningPresetCatalog.WildId, StringComparison.OrdinalIgnoreCase)
+            && NearlyEquals(tuning.SimilarityThreshold, 0.78)
+            && tuning.LookaheadDepth == 1
+            && tuning.MinJumpDistance == 4
+            && tuning.MaxBranchesPerBeat == 6
+            && NearlyEquals(tuning.JumpProbability, 0.42)
+            && tuning.JumpCooldown == 6
+            && NearlyEquals(tuning.FirstPassLinearPlaybackRatio, 0.70);
     }
 
     private static bool NearlyEquals(double left, double right)

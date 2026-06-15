@@ -13,7 +13,7 @@ public sealed class LoopTuningPresetCatalogTests
     }
 
     [Fact]
-    public void BalancedPresetShouldMatchValidatedScriptDefaults()
+    public void BalancedPresetShouldBePlayableEarly()
     {
         LoopTuningPresetDefinition preset = LoopTuningPresetCatalog.GetById(
             LoopTuningPresetCatalog.BalancedId);
@@ -21,12 +21,36 @@ public sealed class LoopTuningPresetCatalogTests
         preset.SimilarityThreshold.Should().Be(0.86);
         preset.LookaheadDepth.Should().Be(1);
         preset.MinJumpDistance.Should().Be(4);
-        preset.MaxBranchesPerBeat.Should().Be(4);
-        preset.JumpProbability.Should().Be(0.22);
-        preset.JumpCooldown.Should().Be(12);
-        preset.FirstPassLinearPlaybackRatio.Should().Be(0.78);
+        preset.MaxBranchesPerBeat.Should().Be(6);
+        preset.JumpProbability.Should().Be(0.85);
+        preset.JumpCooldown.Should().Be(4);
+        preset.FirstPassLinearPlaybackRatio.Should().Be(0.10);
         preset.BranchQuantumType.Should().Be("beats");
         preset.BranchMaxThreshold.Should().Be(80);
         preset.AnalysisMusicalQuality.Should().BeTrue();
+    }
+
+    [Fact]
+    public void WildPresetShouldAllowImmediateBranching()
+    {
+        LoopTuningPresetDefinition preset = LoopTuningPresetCatalog.GetById(
+            LoopTuningPresetCatalog.WildId);
+
+        preset.JumpProbability.Should().Be(1.00);
+        preset.JumpCooldown.Should().Be(0);
+        preset.FirstPassLinearPlaybackRatio.Should().Be(0.00);
+        preset.MaxBranchesPerBeat.Should().Be(8);
+    }
+
+    [Fact]
+    public void ConservativePresetShouldStillPreserveStructure()
+    {
+        LoopTuningPresetDefinition preset = LoopTuningPresetCatalog.GetById(
+            LoopTuningPresetCatalog.ConservativeId);
+
+        preset.JumpProbability.Should().Be(0.35);
+        preset.JumpCooldown.Should().Be(12);
+        preset.FirstPassLinearPlaybackRatio.Should().Be(0.50);
+        preset.MaxBranchesPerBeat.Should().Be(2);
     }
 }

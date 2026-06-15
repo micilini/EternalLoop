@@ -22,7 +22,10 @@ public sealed class SettingsViewModelTests
         await AsyncTest.EventuallyAsync(() =>
         {
             viewModel.SelectedPresetId.Should().Be(LoopTuningPresetCatalog.BalancedId);
-            viewModel.JumpProbability.Should().Be(0.22);
+            viewModel.JumpProbability.Should().Be(0.85);
+            viewModel.JumpCooldown.Should().Be(4);
+            viewModel.FirstPassLinearPlaybackRatio.Should().Be(0.10);
+            viewModel.MaxBranchesPerBeat.Should().Be(6);
             viewModel.TuningStatusText.Should().Be("Tuning saved. It will be applied to the next track.");
             repository.SaveCount.Should().Be(1);
         });

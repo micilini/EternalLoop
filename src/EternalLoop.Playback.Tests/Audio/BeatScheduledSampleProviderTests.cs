@@ -446,6 +446,30 @@ public sealed class BeatScheduledSampleProviderTests
     }
 
     [Fact]
+    public void ResetShouldClearCompletionAndAllowSamplesAgain()
+    {
+        var provider = new BeatScheduledSampleProvider(
+            PlaybackFixtures.LoadedAudio(sampleRate: 10),
+            PlaybackFixtures.BuildTrack(),
+            new BranchDecisionEngine(new BranchDecisionOptions { EscapeOptions = new BranchEscapeOptions { Enabled = false } }),
+            new BranchTransitionOptions { Enabled = false });
+        float[] completedBuffer = new float[70];
+
+        provider.SetBringItHome(true);
+        provider.Read(completedBuffer, 0, completedBuffer.Length);
+
+        provider.IsCompleted.Should().BeTrue();
+
+        provider.Reset();
+        float[] restartedBuffer = new float[4];
+        provider.Read(restartedBuffer, 0, restartedBuffer.Length);
+
+        provider.IsCompleted.Should().BeFalse();
+        provider.CurrentBeatIndex.Should().Be(0);
+        restartedBuffer.Should().OnlyContain(sample => sample > 0);
+    }
+
+    [Fact]
     public void ResetShouldReturnToFirstBeat()
     {
         var provider = new BeatScheduledSampleProvider(

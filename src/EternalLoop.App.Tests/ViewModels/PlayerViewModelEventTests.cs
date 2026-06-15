@@ -1,3 +1,4 @@
+using EternalLoop.App.Tests.TestDoubles;
 using FluentAssertions;
 
 namespace EternalLoop.App.Tests.ViewModels;
@@ -47,5 +48,24 @@ public sealed class PlayerViewModelEventTests
         viewModel.CurrentBeatIndex.Should().Be(0);
         viewModel.LastJumpFromBeat.Should().Be(-1);
         viewModel.LastJumpToBeat.Should().Be(-1);
+    }
+
+    [Fact]
+    public async Task PlaybackCompletedShouldResetBringItHomeStatus()
+    {
+        var player = new PlayerViewModelDisposalTests.FakeLoopingAudioPlayer();
+        var viewModel = PlayerViewModelDisposalTests.CreateViewModel(
+            playerFactory: new PlayerViewModelDisposalTests.FakePlayerFactory(player));
+        await viewModel.InitializeAsync();
+        viewModel.BringItHomeCommand.Execute(null);
+
+        player.RaisePlaybackCompleted();
+
+        await AsyncTest.EventuallyAsync(() =>
+        {
+            viewModel.IsBringItHomeEnabled.Should().BeFalse();
+            viewModel.BringItHomeStatusText.Should().Be("Finish mode: OFF");
+            viewModel.IsPlaying.Should().BeFalse();
+        });
     }
 }

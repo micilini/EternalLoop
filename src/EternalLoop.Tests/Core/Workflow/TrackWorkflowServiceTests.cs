@@ -111,7 +111,7 @@ public sealed class TrackWorkflowServiceTests
         analysisService.Requests[0].Options.MusicalQuality.AcousticSegmentation.Should().BeTrue();
         analysisService.Requests[0].Options.MusicalQuality.BeatMicroSnap.Should().BeTrue();
         branchService.Requests[0].Options.QuantumType.Should().Be("beats");
-        branchService.Requests[0].Options.MaxBranches.Should().Be(4);
+        branchService.Requests[0].Options.MaxBranches.Should().Be(6);
         branchService.Requests[0].Options.MaxThreshold.Should().Be(80);
         branchService.Requests[0].Options.Force.Should().BeTrue();
         branchService.Requests[0].Options.Pretty.Should().BeTrue();
@@ -158,9 +158,9 @@ public sealed class TrackWorkflowServiceTests
         result.RuntimePackage.Tuning.MinJumpDistance.Should().Be(16);
         result.RuntimePackage.Tuning.MaxBranchesPerBeat.Should().Be(6);
         result.RuntimePackage.Tuning.BranchMaxThreshold.Should().Be(95);
-        result.RuntimePackage.BranchDecisionOptions.JumpProbability.Should().Be(0.22);
-        result.RuntimePackage.BranchDecisionOptions.JumpCooldownBeats.Should().Be(12);
-        result.RuntimePackage.BranchDecisionOptions.FirstPassLinearPlaybackRatio.Should().Be(0.78);
+        result.RuntimePackage.BranchDecisionOptions.JumpProbability.Should().Be(0.85);
+        result.RuntimePackage.BranchDecisionOptions.JumpCooldownBeats.Should().Be(4);
+        result.RuntimePackage.BranchDecisionOptions.FirstPassLinearPlaybackRatio.Should().Be(0.10);
     }
 
     [Fact]

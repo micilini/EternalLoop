@@ -25,7 +25,7 @@ public sealed class RuntimePackageCacheKeyTests
                 current.JumpCooldown = 2;
                 break;
             case "FirstPassLinearPlaybackRatio":
-                current.FirstPassLinearPlaybackRatio = 0.1;
+                current.FirstPassLinearPlaybackRatio = 0.25;
                 break;
         }
 
@@ -62,7 +62,7 @@ public sealed class RuntimePackageCacheKeyTests
                 current.MinJumpDistance = 8;
                 break;
             case "MaxBranchesPerBeat":
-                current.MaxBranchesPerBeat = 6;
+                current.MaxBranchesPerBeat = 8;
                 break;
             case "BranchQuantumType":
                 current.BranchQuantumType = "segments";

@@ -74,6 +74,49 @@ public sealed class PlayerViewModelPlaybackTests
     }
 
     [Fact]
+    public async Task BringItHomeCommandShouldToggleStateAndTooltip()
+    {
+        var player = new PlayerViewModelDisposalTests.FakeLoopingAudioPlayer();
+        var viewModel = PlayerViewModelDisposalTests.CreateViewModel(
+            playerFactory: new PlayerViewModelDisposalTests.FakePlayerFactory(player));
+        await viewModel.InitializeAsync();
+
+        viewModel.IsBringItHomeEnabled.Should().BeFalse();
+        viewModel.BringItHomeToolTip.Should().Contain("OFF");
+        viewModel.BringItHomeStatusText.Should().Be("Finish mode: OFF");
+
+        viewModel.BringItHomeCommand.Execute(null);
+
+        viewModel.IsBringItHomeEnabled.Should().BeTrue();
+        viewModel.BringItHomeToolTip.Should().Contain("ON");
+        viewModel.BringItHomeStatusText.Should().Be("Finish mode: ON");
+        player.BringItHomeEnabled.Should().BeTrue();
+
+        viewModel.BringItHomeCommand.Execute(null);
+
+        viewModel.IsBringItHomeEnabled.Should().BeFalse();
+        viewModel.BringItHomeToolTip.Should().Contain("OFF");
+        viewModel.BringItHomeStatusText.Should().Be("Finish mode: OFF");
+        player.BringItHomeEnabled.Should().BeFalse();
+        player.SetBringItHomeCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task StopCommandShouldResetBringItHomeStatus()
+    {
+        var player = new PlayerViewModelDisposalTests.FakeLoopingAudioPlayer();
+        var viewModel = PlayerViewModelDisposalTests.CreateViewModel(
+            playerFactory: new PlayerViewModelDisposalTests.FakePlayerFactory(player));
+        await viewModel.InitializeAsync();
+        viewModel.BringItHomeCommand.Execute(null);
+
+        viewModel.StopCommand.Execute(null);
+
+        viewModel.IsBringItHomeEnabled.Should().BeFalse();
+        viewModel.BringItHomeStatusText.Should().Be("Finish mode: OFF");
+    }
+
+    [Fact]
     public async Task AnalyzeAgainCommandShouldUseOriginalPathAndForceReanalysis()
     {
         string root = Directory.CreateTempSubdirectory("eternalloop-player-tests-").FullName;

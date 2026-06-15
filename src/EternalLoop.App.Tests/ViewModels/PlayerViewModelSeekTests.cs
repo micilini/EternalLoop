@@ -33,6 +33,21 @@ public sealed class PlayerViewModelSeekTests
     }
 
     [Fact]
+    public async Task CommitSeekCommandShouldResetBringItHomeStatus()
+    {
+        var player = new PlayerViewModelDisposalTests.FakeLoopingAudioPlayer();
+        var viewModel = PlayerViewModelDisposalTests.CreateViewModel(
+            playerFactory: new PlayerViewModelDisposalTests.FakePlayerFactory(player));
+        await viewModel.InitializeAsync();
+        viewModel.BringItHomeCommand.Execute(null);
+
+        viewModel.CommitSeekCommand.Execute(1.25d);
+
+        viewModel.IsBringItHomeEnabled.Should().BeFalse();
+        viewModel.BringItHomeStatusText.Should().Be("Finish mode: OFF");
+    }
+
+    [Fact]
     public async Task BeginSeekCommandShouldKeepBeatChangedFromOverwritingPositionUntilCommit()
     {
         var player = new PlayerViewModelDisposalTests.FakeLoopingAudioPlayer();

@@ -10,13 +10,13 @@ public sealed class LoopTuningSettings
 
     public int MinJumpDistance { get; set; } = 4;
 
-    public int MaxBranchesPerBeat { get; set; } = 4;
+    public int MaxBranchesPerBeat { get; set; } = 6;
 
-    public double JumpProbability { get; set; } = 0.22;
+    public double JumpProbability { get; set; } = 0.85;
 
-    public int JumpCooldown { get; set; } = 12;
+    public int JumpCooldown { get; set; } = 4;
 
-    public double FirstPassLinearPlaybackRatio { get; set; } = 0.78;
+    public double FirstPassLinearPlaybackRatio { get; set; } = 0.10;
 
     public string BranchQuantumType { get; set; } = "beats";
 

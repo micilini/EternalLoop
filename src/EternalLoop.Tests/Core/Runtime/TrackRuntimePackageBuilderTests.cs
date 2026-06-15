@@ -100,7 +100,7 @@ public sealed class TrackRuntimePackageBuilderTests
         package.Tuning.SimilarityThreshold.Should().Be(0.86);
         package.Tuning.LookaheadDepth.Should().Be(1);
         package.Tuning.MinJumpDistance.Should().Be(4);
-        package.Tuning.MaxBranchesPerBeat.Should().Be(4);
+        package.Tuning.MaxBranchesPerBeat.Should().Be(6);
         package.Tuning.BranchQuantumType.Should().Be("beats");
         package.Tuning.BranchMaxThreshold.Should().Be(80);
         package.Tuning.AnalysisMusicalQuality.Should().BeTrue();
@@ -202,7 +202,7 @@ public sealed class TrackRuntimePackageBuilderTests
                 BranchesJsonPath = BranchesJsonPath,
                 BranchPayload = payload ?? CreatePayload(),
                 Tuning = tuning ?? LoopTuningSettings.Balanced(),
-                SettingsSchemaVersion = 4
+                SettingsSchemaVersion = 5
             };
         }
 

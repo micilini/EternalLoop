@@ -21,5 +21,5 @@ public sealed record TrackRuntimePackageBuildRequest
 
     public required LoopTuningSettings Tuning { get; init; }
 
-    public int SettingsSchemaVersion { get; init; } = 4;
+    public int SettingsSchemaVersion { get; init; } = 5;
 }

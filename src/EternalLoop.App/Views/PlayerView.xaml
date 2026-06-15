@@ -116,8 +116,21 @@
                             <Button Grid.Column="2"
                                     Margin="8 0 0 0"
                                     Command="{Binding BringItHomeCommand}"
-                                    Style="{StaticResource EL.Button.IconRound}"
-                                    ToolTip="Bring it home (deixar terminar)">
+                                    ToolTip="{Binding BringItHomeToolTip}">
+                                <Button.Style>
+                                    <Style TargetType="Button" BasedOn="{StaticResource EL.Button.IconRound}">
+                                        <Setter Property="Background" Value="#14FFFFFF" />
+                                        <Setter Property="BorderBrush" Value="#38CDAFFF" />
+                                        <Setter Property="Foreground" Value="White" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsBringItHomeEnabled}" Value="True">
+                                                <Setter Property="Background" Value="#389C6CFF" />
+                                                <Setter Property="BorderBrush" Value="#CDAFFF" />
+                                                <Setter Property="Foreground" Value="White" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Button.Style>
                                 <materialDesign:PackIcon Kind="Flag" Width="18" Height="18" />
                             </Button>
 
@@ -129,6 +142,9 @@
                                            FontSize="18"
                                            FontWeight="SemiBold" />
                                 <TextBlock Text="Position" Style="{StaticResource EL.Text.Caption}" />
+                                <TextBlock Text="{Binding BringItHomeStatusText}"
+                                           Style="{StaticResource EL.Text.Caption}"
+                                           Foreground="{StaticResource EL.Brush.TextMuted}" />
                             </StackPanel>
                         </Grid>
 

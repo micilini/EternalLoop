@@ -138,7 +138,7 @@
                                     <TextBlock Text="Jump probability" Foreground="White" FontWeight="SemiBold" />
                                     <TextBlock Text="{Binding JumpProbability, StringFormat={}{0:P0}}" Style="{StaticResource EL.Text.Caption}" />
                                     <Slider Minimum="0" Maximum="1" TickFrequency="0.05" Value="{Binding JumpProbability, Mode=TwoWay}" Style="{StaticResource EL.Slider.Tuning}" />
-                                    <TextBlock Text="How often EternalLoop tries to jump after the first pass." Style="{StaticResource EL.Text.Caption}" TextWrapping="Wrap" />
+                                    <TextBlock Text="How strongly EternalLoop accepts a safe branch once the chance ramp allows it." Style="{StaticResource EL.Text.Caption}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
 
@@ -161,8 +161,8 @@
                                 <StackPanel>
                                     <TextBlock Text="First pass length" Foreground="White" FontWeight="SemiBold" />
                                     <TextBlock Text="{Binding FirstPassLinearPlaybackRatio, StringFormat={}{0:P0}}" Style="{StaticResource EL.Text.Caption}" />
-                                    <Slider Minimum="0.55" Maximum="0.90" TickFrequency="0.05" Value="{Binding FirstPassLinearPlaybackRatio, Mode=TwoWay}" Style="{StaticResource EL.Slider.Tuning}" />
-                                    <TextBlock Text="How much of the song plays normally before jumps begin." Style="{StaticResource EL.Text.Caption}" TextWrapping="Wrap" />
+                                    <Slider Minimum="0" Maximum="0.90" TickFrequency="0.05" IsSnapToTickEnabled="True" Value="{Binding FirstPassLinearPlaybackRatio, Mode=TwoWay}" Style="{StaticResource EL.Slider.Tuning}" />
+                                    <TextBlock Text="0% = jumps may start immediately; higher values preserve more of the first linear pass." Style="{StaticResource EL.Text.Caption}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
                         </WrapPanel>

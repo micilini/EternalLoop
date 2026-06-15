@@ -64,6 +64,11 @@ public sealed class LoopingAudioPlayer : ILoopingAudioPlayer
 
         try
         {
+            if (_sampleProvider.IsCompleted)
+            {
+                _sampleProvider.Reset();
+            }
+
             _waveOut.Play();
             SetState(PlaybackState.Playing);
         }

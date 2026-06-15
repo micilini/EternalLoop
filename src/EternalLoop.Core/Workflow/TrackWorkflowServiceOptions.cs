@@ -17,7 +17,7 @@ public sealed record TrackWorkflowServiceOptions
 
     public LoopTuningSettings Tuning { get; init; } = LoopTuningSettings.Balanced();
 
-    public int SettingsSchemaVersion { get; init; } = 4;
+    public int SettingsSchemaVersion { get; init; } = 5;
 
     public TrackFileIdentityService? FileIdentityService { get; init; }
 
