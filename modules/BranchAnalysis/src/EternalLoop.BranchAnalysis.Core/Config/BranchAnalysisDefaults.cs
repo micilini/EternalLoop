@@ -18,6 +18,11 @@ public static class BranchAnalysisDefaults
     public const int PhraseBars = 8;
     public const int LocalWindowBars = 2;
     public const int MaxShortLocalBranchesPerCluster = 1;
+    public const bool LateAnchorRouting = true;
+    public const int EarlyReturnTargetPercent = 25;
+    public const int LateAnchorPreferredStartPercent = 80;
+    public const int LateAnchorFallbackStartPercent = 66;
+    public const int LateAnchorReachThresholdPercent = 50;
     public const bool Force = true;
     public const bool Pretty = true;
     public const bool Quiet = false;

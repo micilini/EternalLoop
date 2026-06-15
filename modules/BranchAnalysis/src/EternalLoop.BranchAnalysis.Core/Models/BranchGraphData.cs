@@ -36,6 +36,19 @@ public sealed class BranchGraphData
     public int LastBranchPoint { get; set; }
     public double LongestReach { get; set; }
     public int TotalBeats { get; set; }
+    public bool LateAnchorRouting { get; set; } = BranchAnalysisDefaults.LateAnchorRouting;
+    public int EarlyReturnTargetPercent { get; set; } = BranchAnalysisDefaults.EarlyReturnTargetPercent;
+    public int LateAnchorPreferredStartPercent { get; set; } = BranchAnalysisDefaults.LateAnchorPreferredStartPercent;
+    public int LateAnchorFallbackStartPercent { get; set; } = BranchAnalysisDefaults.LateAnchorFallbackStartPercent;
+    public string LateAnchorDecision { get; set; } = "none";
+    public string LateAnchorReason { get; set; } = "not-run";
+    public int LateAnchorEarlyReturnTargetBeat { get; set; } = -1;
+    public int LateAnchorBranchesToTarget { get; set; } = -1;
+    public int LateAnchorEarliestReachableBeat { get; set; } = -1;
+    public int LateAnchorImmediateBackwardBeats { get; set; }
+    public double LateAnchorDistance { get; set; } = double.NaN;
+    public int LateAnchorInsertedEdgeId { get; set; } = -1;
+    public int LateAnchorSelectedEdgeId { get; set; } = -1;
 
     [JsonIgnore]
     public StructuralBranchContext? StructuralContext { get; set; }

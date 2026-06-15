@@ -30,6 +30,8 @@ public sealed class BranchOutputContractTests
         root["branchSource"]!.GetValue<string>().Should().Be("track.analysis.beats[*].neighbors");
         root["activeBranches"].Should().BeOfType<JsonArray>();
         root["candidateBranches"].Should().BeOfType<JsonArray>();
+        root["tuning"]!["lateAnchorRouting"].Should().NotBeNull();
+        root["diagnostics"]!["lateAnchorDecision"].Should().NotBeNull();
 
         JsonArray activeBranches = root["activeBranches"]!.AsArray();
         JsonArray candidateBranches = root["candidateBranches"]!.AsArray();

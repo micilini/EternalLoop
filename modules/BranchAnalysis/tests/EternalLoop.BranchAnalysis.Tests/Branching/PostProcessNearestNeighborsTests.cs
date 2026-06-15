@@ -151,6 +151,155 @@ public sealed class PostProcessNearestNeighborsTests
     }
 
     [Fact]
+    public void PostProcess_WithLateAnchorRouting_SelectsAnchorAtOrAfterPreferredStartWhenPossible()
+    {
+        TrackAnalysisDocument track = CreateManualTrack(20);
+        BranchGraphData data = new()
+        {
+            AddLastEdge = true,
+            LateAnchorRouting = true,
+            LateAnchorPreferredStartPercent = 80,
+            LateAnchorFallbackStartPercent = 66,
+            MinLongBranch = 4
+        };
+        AddActiveEdge(track, 18, 2, 20, data);
+
+        PostProcessNearestNeighbors.PostProcess(track, data);
+
+        data.LastBranchPoint.Should().Be(18);
+        data.LateAnchorDecision.Should().Be("existing-preferred-anchor");
+        data.LateAnchorBranchesToTarget.Should().Be(0);
+    }
+
+    [Fact]
+    public void PostProcess_WithLateAnchorRouting_InsertsPreferredLateAnchorBeforeFallbackAnchor()
+    {
+        TrackAnalysisDocument track = CreateManualTrack(20);
+        BranchGraphData data = new()
+        {
+            AddLastEdge = true,
+            LateAnchorRouting = true,
+            CurrentThreshold = 30,
+            LateAnchorPreferredStartPercent = 80,
+            LateAnchorFallbackStartPercent = 66,
+            MinLongBranch = 4
+        };
+        BranchEdge preferred = AddCandidateEdge(track, 18, 2, 40, data);
+        AddCandidateEdge(track, 14, 1, 35, data);
+
+        PostProcessNearestNeighbors.PostProcess(track, data);
+
+        data.LastBranchPoint.Should().Be(18);
+        data.LateAnchorDecision.Should().Be("inserted-preferred-anchor");
+        data.LateAnchorInsertedEdgeId.Should().Be(preferred.Id);
+        track.Analysis.Beats[18].Neighbors.Should().Contain(preferred);
+    }
+
+    [Fact]
+    public void PostProcess_WithLateAnchorRouting_FallsBackToLegacyWhenNoAnchorIsEligible()
+    {
+        TrackAnalysisDocument track = CreateManualTrack(10);
+        BranchGraphData data = new()
+        {
+            AddLastEdge = true,
+            LateAnchorRouting = true,
+            CurrentThreshold = 10
+        };
+        BranchEdge legacy = AddCandidateEdge(track, 8, 4, 60, data);
+
+        PostProcessNearestNeighbors.PostProcess(track, data);
+
+        track.Analysis.Beats[8].Neighbors.Should().Contain(legacy);
+        data.LateAnchorDecision.Should().Be("legacy-fallback");
+    }
+
+    [Fact]
+    public void PostProcess_LateAnchorRoutingDisabled_ReproducesLegacyLastBranchPoint()
+    {
+        TrackAnalysisDocument legacyTrack = CreateManualTrack(10);
+        BranchGraphData legacyData = new()
+        {
+            AddLastEdge = true,
+            LateAnchorRouting = false,
+            CurrentThreshold = 10
+        };
+        AddCandidateEdge(legacyTrack, 8, 1, 60, legacyData);
+        TrackAnalysisDocument routedTrack = CreateManualTrack(10);
+        BranchGraphData routedData = new()
+        {
+            AddLastEdge = true,
+            LateAnchorRouting = true,
+            CurrentThreshold = 10
+        };
+        AddCandidateEdge(routedTrack, 8, 1, 60, routedData);
+
+        PostProcessNearestNeighbors.PostProcess(legacyTrack, legacyData);
+        PostProcessNearestNeighbors.PostProcess(routedTrack, routedData);
+
+        legacyData.LastBranchPoint.Should().Be(routedData.LastBranchPoint);
+        legacyTrack.Analysis.Beats[8].Neighbors.Count.Should().Be(routedTrack.Analysis.Beats[8].Neighbors.Count);
+    }
+
+    [Fact]
+    public void PostProcess_FilterOutBadBranches_StillRemovesBranchesPastLastBranchPoint()
+    {
+        TrackAnalysisDocument track = CreateManualTrack(20);
+        BranchGraphData data = new()
+        {
+            AddLastEdge = true,
+            LateAnchorRouting = true
+        };
+        BranchEdge anchor = AddActiveEdge(track, 18, 2, 20, data);
+        BranchEdge removed = AddActiveEdge(track, 0, 19, 20, data);
+
+        PostProcessNearestNeighbors.PostProcess(track, data);
+
+        data.LastBranchPoint.Should().Be(18);
+        track.Analysis.Beats[0].Neighbors.Should().NotContain(removed);
+        track.Analysis.Beats[18].Neighbors.Should().Contain(anchor);
+    }
+
+    [Fact]
+    public void PostProcess_SequentialFilter_StillSkipsSelectedLastBranchPoint()
+    {
+        TrackAnalysisDocument track = CreateManualTrack(20);
+        BranchGraphData data = new()
+        {
+            AddLastEdge = true,
+            LateAnchorRouting = true,
+            RemoveSequentialBranches = true
+        };
+        AddActiveEdge(track, 16, 0, 20, data);
+        BranchEdge previous = AddActiveEdge(track, 17, 1, 20, data);
+        BranchEdge selected = AddActiveEdge(track, 18, 2, 20, data);
+
+        PostProcessNearestNeighbors.PostProcess(track, data);
+
+        track.Analysis.Beats[17].Neighbors.Should().BeEmpty();
+        track.Analysis.Beats[18].Neighbors.Should().Contain(selected);
+        previous.Deleted.Should().BeFalse();
+    }
+
+    [Fact]
+    public void PostProcess_AntiLocalLoopPolicy_StillRunsAfterLateAnchorRouting()
+    {
+        TrackAnalysisDocument track = CreateManualTrack(20);
+        BranchGraphData data = new()
+        {
+            AddLastEdge = true,
+            LateAnchorRouting = true,
+            AntiLocalLoopPolicy = true,
+            StructuralContext = StructuralBranchPolicy.BuildStructuralBranchContext(track)
+        };
+        AddActiveEdge(track, 18, 2, 20, data);
+
+        PostProcessNearestNeighbors.PostProcess(track, data);
+
+        data.LocalLoopRiskBranches.Should().BeGreaterThanOrEqualTo(0);
+        data.BranchCount.Should().Be(PostProcessNearestNeighbors.CountActiveBranches(track));
+    }
+
+    [Fact]
     public void LongestBackwardBranchShouldMeasurePercent()
     {
         TrackAnalysisDocument track = CreateManualTrack(10);
@@ -261,5 +410,20 @@ public sealed class PostProcessNearestNeighborsTests
             PolicyDecision = "accepted",
             PolicyReasons = []
         };
+    }
+
+    private static BranchEdge AddActiveEdge(TrackAnalysisDocument track, int source, int destination, double distance, BranchGraphData data)
+    {
+        BranchEdge edge = AddCandidateEdge(track, source, destination, distance, data);
+        track.Analysis.Beats[source].Neighbors.Add(edge);
+        return edge;
+    }
+
+    private static BranchEdge AddCandidateEdge(TrackAnalysisDocument track, int source, int destination, double distance, BranchGraphData data)
+    {
+        BranchEdge edge = CreateEdge(data.AllEdges.Count, track.Analysis.Beats[source], track.Analysis.Beats[destination], distance);
+        track.Analysis.Beats[source].AllNeighbors.Add(edge);
+        data.AllEdges.Add(edge);
+        return edge;
     }
 }

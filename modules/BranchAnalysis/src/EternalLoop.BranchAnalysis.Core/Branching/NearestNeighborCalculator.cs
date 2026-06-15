@@ -64,6 +64,16 @@ public static class NearestNeighborCalculator
             MaxShortLocalBranchesPerCluster = GetPositiveInteger(
                 options?.MaxShortLocalBranchesPerCluster,
                 BranchAnalysisDefaults.MaxShortLocalBranchesPerCluster),
+            LateAnchorRouting = options?.LateAnchorRouting ?? BranchAnalysisDefaults.LateAnchorRouting,
+            EarlyReturnTargetPercent = GetPercent(
+                options?.EarlyReturnTargetPercent,
+                BranchAnalysisDefaults.EarlyReturnTargetPercent),
+            LateAnchorPreferredStartPercent = GetPercent(
+                options?.LateAnchorPreferredStartPercent,
+                BranchAnalysisDefaults.LateAnchorPreferredStartPercent),
+            LateAnchorFallbackStartPercent = GetPercent(
+                options?.LateAnchorFallbackStartPercent,
+                BranchAnalysisDefaults.LateAnchorFallbackStartPercent),
             StructurallyRejectedBranches = 0,
             AntiMRemovedBranches = 0,
             LocalLoopRiskBranches = 0,
@@ -466,6 +476,21 @@ public static class NearestNeighborCalculator
         branchGraphData.LastBranchPoint = GetNonNegativeInteger(branchGraphData.LastBranchPoint, 0);
         branchGraphData.LongestReach = GetPositiveNumber(branchGraphData.LongestReach, 0);
         branchGraphData.TotalBeats = quanta.Count;
+        branchGraphData.EarlyReturnTargetPercent = GetPercent(
+            branchGraphData.EarlyReturnTargetPercent,
+            BranchAnalysisDefaults.EarlyReturnTargetPercent);
+        branchGraphData.LateAnchorPreferredStartPercent = GetPercent(
+            branchGraphData.LateAnchorPreferredStartPercent,
+            BranchAnalysisDefaults.LateAnchorPreferredStartPercent);
+        branchGraphData.LateAnchorFallbackStartPercent = GetPercent(
+            branchGraphData.LateAnchorFallbackStartPercent,
+            BranchAnalysisDefaults.LateAnchorFallbackStartPercent);
+        branchGraphData.LateAnchorDecision = string.IsNullOrWhiteSpace(branchGraphData.LateAnchorDecision)
+            ? "none"
+            : branchGraphData.LateAnchorDecision;
+        branchGraphData.LateAnchorReason = string.IsNullOrWhiteSpace(branchGraphData.LateAnchorReason)
+            ? "not-run"
+            : branchGraphData.LateAnchorReason;
 
         return branchGraphData;
     }
@@ -594,6 +619,11 @@ public static class NearestNeighborCalculator
     private static int GetNonNegativeInteger(int value, int fallback)
     {
         return value >= 0 ? value : fallback;
+    }
+
+    private static int GetPercent(int? value, int fallback)
+    {
+        return value is >= 0 and <= 100 ? value.Value : fallback;
     }
 }
 

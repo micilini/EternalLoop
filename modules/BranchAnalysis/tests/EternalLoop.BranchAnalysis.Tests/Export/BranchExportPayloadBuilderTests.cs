@@ -67,6 +67,10 @@ public sealed class BranchExportPayloadBuilderTests
         payload.Tuning.ShortBranchPolicy.Should().Be("structural-gated");
         payload.Tuning.ScoreGate.Should().Be(BranchExportPayloadBuilder.ThresholdGate);
         payload.Tuning.StructuralMode.Should().Be(BranchExportPayloadBuilder.StructuralModeEnabled);
+        payload.Tuning.LateAnchorRouting.Should().BeTrue();
+        payload.Tuning.EarlyReturnTargetPercent.Should().Be(25);
+        payload.Tuning.LateAnchorPreferredStartPercent.Should().Be(80);
+        payload.Tuning.LateAnchorFallbackStartPercent.Should().Be(66);
     }
 
     [Fact]
@@ -88,6 +92,24 @@ public sealed class BranchExportPayloadBuilderTests
         payload.Counts.LocalLoopRiskBranches.Should().Be(data.LocalLoopRiskBranches);
         payload.Counts.StructurallyRejectedBranches.Should().Be(data.StructurallyRejectedBranches);
         payload.Counts.AntiMRemovedBranches.Should().Be(data.AntiMRemovedBranches);
+    }
+
+    [Fact]
+    public void Build_IncludesLateAnchorDiagnostics()
+    {
+        (TrackAnalysisDocument track, BranchGraphData data) = CreateExportFixture();
+
+        BranchExportPayload payload = BranchExportPayloadBuilder.Build(track, data);
+
+        payload.Diagnostics.LateAnchorDecision.Should().Be("existing-preferred-anchor");
+        payload.Diagnostics.LateAnchorReason.Should().Be("existing");
+        payload.Diagnostics.LateAnchorEarlyReturnTargetBeat.Should().Be(2);
+        payload.Diagnostics.LateAnchorBranchesToTarget.Should().Be(1);
+        payload.Diagnostics.LateAnchorEarliestReachableBeat.Should().Be(0);
+        payload.Diagnostics.LateAnchorImmediateBackwardBeats.Should().Be(4);
+        payload.Diagnostics.LateAnchorDistance.Should().Be(24);
+        payload.Diagnostics.LateAnchorInsertedEdgeId.Should().BeNull();
+        payload.Diagnostics.LateAnchorSelectedEdgeId.Should().Be(10);
     }
 
     [Fact]
@@ -283,6 +305,14 @@ public sealed class BranchExportPayloadBuilderTests
         data.LocalLoopRiskBranches = 1;
         data.StructurallyRejectedBranches = 2;
         data.AntiMRemovedBranches = 3;
+        data.LateAnchorDecision = "existing-preferred-anchor";
+        data.LateAnchorReason = "existing";
+        data.LateAnchorEarlyReturnTargetBeat = 2;
+        data.LateAnchorBranchesToTarget = 1;
+        data.LateAnchorEarliestReachableBeat = 0;
+        data.LateAnchorImmediateBackwardBeats = 4;
+        data.LateAnchorDistance = 24;
+        data.LateAnchorSelectedEdgeId = 10;
         data.StructuralContext = StructuralBranchPolicy.BuildStructuralBranchContext(track);
 
         return (track, data);

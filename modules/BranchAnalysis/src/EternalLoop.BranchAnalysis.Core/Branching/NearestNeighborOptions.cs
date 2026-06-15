@@ -25,6 +25,10 @@ public sealed class NearestNeighborOptions
     public int? PhraseBars { get; init; }
     public int? LocalWindowBars { get; init; }
     public int? MaxShortLocalBranchesPerCluster { get; init; }
+    public bool? LateAnchorRouting { get; init; }
+    public int? EarlyReturnTargetPercent { get; init; }
+    public int? LateAnchorPreferredStartPercent { get; init; }
+    public int? LateAnchorFallbackStartPercent { get; init; }
 
     public static NearestNeighborOptions FromBranchAnalysisOptions(BranchAnalysisOptions options)
     {

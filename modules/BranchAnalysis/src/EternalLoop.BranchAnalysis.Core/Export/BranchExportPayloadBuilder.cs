@@ -301,7 +301,11 @@ public static class BranchExportPayloadBuilder
                 AntiLocalLoopPolicy = branchGraphData.AntiLocalLoopPolicy,
                 ShortBranchPolicy = SafeString(branchGraphData.ShortBranchPolicy),
                 ScoreGate = ThresholdGate,
-                StructuralMode = branchGraphData.StructuralPolicy ? StructuralModeEnabled : StructuralModeDisabled
+                StructuralMode = branchGraphData.StructuralPolicy ? StructuralModeEnabled : StructuralModeDisabled,
+                LateAnchorRouting = branchGraphData.LateAnchorRouting,
+                EarlyReturnTargetPercent = SafeNumber(branchGraphData.EarlyReturnTargetPercent),
+                LateAnchorPreferredStartPercent = SafeNumber(branchGraphData.LateAnchorPreferredStartPercent),
+                LateAnchorFallbackStartPercent = SafeNumber(branchGraphData.LateAnchorFallbackStartPercent)
             },
             Policy = StructuralBranchPolicy.GetPolicySummary(branchGraphData.StructuralContext),
             Counts = new BranchExportCounts
@@ -325,7 +329,16 @@ public static class BranchExportPayloadBuilder
             {
                 StructurallyRejectedBranches = Math.Max(0, branchGraphData.StructurallyRejectedBranches),
                 AntiMRemovedBranches = Math.Max(0, branchGraphData.AntiMRemovedBranches),
-                LocalLoopRiskBranches = localLoopRiskBranches
+                LocalLoopRiskBranches = localLoopRiskBranches,
+                LateAnchorDecision = SafeString(branchGraphData.LateAnchorDecision) ?? string.Empty,
+                LateAnchorReason = SafeString(branchGraphData.LateAnchorReason) ?? string.Empty,
+                LateAnchorEarlyReturnTargetBeat = SafeNonNegativeNumber(branchGraphData.LateAnchorEarlyReturnTargetBeat),
+                LateAnchorBranchesToTarget = SafeNonNegativeNumber(branchGraphData.LateAnchorBranchesToTarget),
+                LateAnchorEarliestReachableBeat = SafeNonNegativeNumber(branchGraphData.LateAnchorEarliestReachableBeat),
+                LateAnchorImmediateBackwardBeats = SafeNonNegativeNumber(branchGraphData.LateAnchorImmediateBackwardBeats),
+                LateAnchorDistance = SafeNumber(branchGraphData.LateAnchorDistance),
+                LateAnchorInsertedEdgeId = SafeNonNegativeNumber(branchGraphData.LateAnchorInsertedEdgeId),
+                LateAnchorSelectedEdgeId = SafeNonNegativeNumber(branchGraphData.LateAnchorSelectedEdgeId)
             },
             ActiveBranches = activeBranches,
             CandidateBranches = candidateBranches
@@ -348,6 +361,11 @@ public static class BranchExportPayloadBuilder
         }
 
         return fixedTitle;
+    }
+
+    private static int? SafeNonNegativeNumber(int value)
+    {
+        return value >= 0 ? value : null;
     }
 
     public static JsonNode ToJsonNode(BranchExportPayload payload)

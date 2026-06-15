@@ -118,6 +118,18 @@ public sealed class BranchExportTuning
 
     [JsonPropertyName("structuralMode")]
     public string StructuralMode { get; init; } = string.Empty;
+
+    [JsonPropertyName("lateAnchorRouting")]
+    public bool LateAnchorRouting { get; init; }
+
+    [JsonPropertyName("earlyReturnTargetPercent")]
+    public int? EarlyReturnTargetPercent { get; init; }
+
+    [JsonPropertyName("lateAnchorPreferredStartPercent")]
+    public int? LateAnchorPreferredStartPercent { get; init; }
+
+    [JsonPropertyName("lateAnchorFallbackStartPercent")]
+    public int? LateAnchorFallbackStartPercent { get; init; }
 }
 
 public sealed class BranchExportCounts
@@ -175,6 +187,33 @@ public sealed class BranchExportDiagnostics
 
     [JsonPropertyName("localLoopRiskBranches")]
     public int LocalLoopRiskBranches { get; init; }
+
+    [JsonPropertyName("lateAnchorDecision")]
+    public string LateAnchorDecision { get; init; } = string.Empty;
+
+    [JsonPropertyName("lateAnchorReason")]
+    public string LateAnchorReason { get; init; } = string.Empty;
+
+    [JsonPropertyName("lateAnchorEarlyReturnTargetBeat")]
+    public int? LateAnchorEarlyReturnTargetBeat { get; init; }
+
+    [JsonPropertyName("lateAnchorBranchesToTarget")]
+    public int? LateAnchorBranchesToTarget { get; init; }
+
+    [JsonPropertyName("lateAnchorEarliestReachableBeat")]
+    public int? LateAnchorEarliestReachableBeat { get; init; }
+
+    [JsonPropertyName("lateAnchorImmediateBackwardBeats")]
+    public int? LateAnchorImmediateBackwardBeats { get; init; }
+
+    [JsonPropertyName("lateAnchorDistance")]
+    public double? LateAnchorDistance { get; init; }
+
+    [JsonPropertyName("lateAnchorInsertedEdgeId")]
+    public int? LateAnchorInsertedEdgeId { get; init; }
+
+    [JsonPropertyName("lateAnchorSelectedEdgeId")]
+    public int? LateAnchorSelectedEdgeId { get; init; }
 }
 
 public sealed class BranchExportBranch
