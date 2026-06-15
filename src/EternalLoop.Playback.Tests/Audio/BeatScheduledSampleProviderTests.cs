@@ -312,7 +312,7 @@ public sealed class BeatScheduledSampleProviderTests
     }
 
     [Fact]
-    public void FirstPassRatioShouldNotBlockLabStyleBranch()
+    public void FirstPassRatioShouldBlockEarlyBranch()
     {
         var track = PlaybackFixtures.BuildTrack([PlaybackFixtures.Branch(fromBeat: 1, toBeat: 4)]);
         var provider = new BeatScheduledSampleProvider(
@@ -335,15 +335,13 @@ public sealed class BeatScheduledSampleProviderTests
 
         provider.Read(new float[1200], 0, 1200);
 
-        jumps.Should().ContainSingle();
-        jumps[0].Reason.Should().Be("Branch selected");
-        jumps[0].ToBeatIndex.Should().Be(4);
-        provider.CurrentBeatIndex.Should().Be(4);
-        provider.PositionSeconds.Should().BeApproximately(4.2, 0.0001);
+        jumps.Should().BeEmpty();
+        provider.CurrentBeatIndex.Should().Be(1);
+        provider.PositionSeconds.Should().BeApproximately(1.2, 0.0001);
     }
 
     [Fact]
-    public void JumpCooldownShouldNotBlockLabStyleNearbyJump()
+    public void JumpCooldownShouldBlockNearbyJump()
     {
         var track = PlaybackFixtures.BuildTrack(
         [
@@ -370,11 +368,81 @@ public sealed class BeatScheduledSampleProviderTests
 
         provider.Read(new float[2200], 0, 2200);
 
-        jumps.Should().HaveCount(2);
+        jumps.Should().ContainSingle();
         jumps[0].ToBeatIndex.Should().Be(3);
-        jumps[1].ToBeatIndex.Should().Be(0);
-        provider.CurrentBeatIndex.Should().Be(0);
-        provider.PositionSeconds.Should().BeApproximately(0.2, 0.0001);
+        provider.CurrentBeatIndex.Should().Be(4);
+        provider.PositionSeconds.Should().BeApproximately(4.2, 0.0001);
+    }
+
+    [Fact]
+    public void BringItHomeShouldStopOnLastBeatAndFillSilence()
+    {
+        var provider = new BeatScheduledSampleProvider(
+            PlaybackFixtures.LoadedAudio(sampleRate: 10),
+            PlaybackFixtures.BuildTrack(),
+            new BranchDecisionEngine(new BranchDecisionOptions { EscapeOptions = new BranchEscapeOptions { Enabled = false } }),
+            new BranchTransitionOptions { Enabled = false });
+        int completedCount = 0;
+        provider.PlaybackCompleted += (_, _) => completedCount++;
+        float[] buffer = new float[70];
+
+        provider.SetBringItHome(true);
+        provider.Read(buffer, 0, buffer.Length);
+        provider.Read(new float[10], 0, 10);
+
+        completedCount.Should().Be(1);
+        provider.CurrentBeatIndex.Should().Be(4);
+        buffer[..50].Should().OnlyContain(sample => sample > 0);
+        buffer[50..].Should().OnlyContain(sample => sample == 0);
+    }
+
+    [Fact]
+    public void BringItHomeShouldPlayLinearlyWithoutBranchJump()
+    {
+        var track = PlaybackFixtures.BuildTrack([PlaybackFixtures.Branch()]);
+        var provider = new BeatScheduledSampleProvider(
+            PlaybackFixtures.LoadedAudio(sampleRate: 10),
+            track,
+            new BranchDecisionEngine(
+                new BranchDecisionOptions
+                {
+                    JumpProbability = 1,
+                    MinRandomBranchChance = 1,
+                    MaxRandomBranchChance = 1,
+                    JumpCooldownBeats = 0,
+                    FirstPassLinearPlaybackRatio = 0,
+                    EscapeOptions = new BranchEscapeOptions { Enabled = false }
+                },
+                new FixedBranchRandomProvider(0)),
+            new BranchTransitionOptions { Enabled = false });
+        List<BranchJumpEventArgs> jumps = [];
+
+        provider.BranchJumped += (_, args) => jumps.Add(args);
+        provider.SetBringItHome(true);
+        provider.Read(new float[30], 0, 30);
+
+        jumps.Should().BeEmpty();
+        provider.CurrentBeatIndex.Should().Be(2);
+    }
+
+    [Fact]
+    public void ResetShouldClearBringItHomeAndCompletion()
+    {
+        var provider = new BeatScheduledSampleProvider(
+            PlaybackFixtures.LoadedAudio(sampleRate: 10),
+            PlaybackFixtures.BuildTrack(),
+            new BranchDecisionEngine(new BranchDecisionOptions { EscapeOptions = new BranchEscapeOptions { Enabled = false } }),
+            new BranchTransitionOptions { Enabled = false });
+        int completedCount = 0;
+        provider.PlaybackCompleted += (_, _) => completedCount++;
+
+        provider.SetBringItHome(true);
+        provider.Read(new float[70], 0, 70);
+        provider.Reset();
+        provider.Read(new float[70], 0, 70);
+
+        completedCount.Should().Be(1);
+        provider.CurrentBeatIndex.Should().BeInRange(0, 4);
     }
 
     [Fact]

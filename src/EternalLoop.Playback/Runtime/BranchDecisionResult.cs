@@ -29,4 +29,12 @@ public sealed class BranchDecisionResult
     public int BlockedBranchCount { get; init; }
 
     public bool ForcedEndGuardJump { get; init; }
+
+    public bool BlockedByFirstPass { get; init; }
+
+    public bool BlockedByCooldown { get; init; }
+
+    public bool BringItHomeActive { get; init; }
+
+    public int CandidateCountConsidered { get; init; }
 }

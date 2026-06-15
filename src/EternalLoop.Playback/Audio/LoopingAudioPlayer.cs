@@ -22,6 +22,7 @@ public sealed class LoopingAudioPlayer : ILoopingAudioPlayer
             _sampleProvider = new BeatScheduledSampleProvider(audio, track, branchDecisionEngine, transitionOptions);
             _sampleProvider.BeatChanged += OnSampleProviderBeatChanged;
             _sampleProvider.BranchJumped += OnSampleProviderBranchJumped;
+            _sampleProvider.PlaybackCompleted += OnSampleProviderPlaybackCompleted;
             _waveOut = new WaveOutEvent
             {
                 DesiredLatency = 80,
@@ -41,6 +42,8 @@ public sealed class LoopingAudioPlayer : ILoopingAudioPlayer
     public event EventHandler<BranchJumpEventArgs>? BranchJumped;
 
     public event EventHandler<PlaybackStateChangedEventArgs>? StateChanged;
+
+    public event EventHandler? PlaybackCompleted;
 
     public PlaybackState State => _state;
 
@@ -98,6 +101,12 @@ public sealed class LoopingAudioPlayer : ILoopingAudioPlayer
         _sampleProvider.Seek(seconds);
     }
 
+    public void SetBringItHome(bool enabled)
+    {
+        ThrowIfDisposed();
+        _sampleProvider.SetBringItHome(enabled);
+    }
+
     public void Dispose()
     {
         if (_disposed)
@@ -108,12 +117,14 @@ public sealed class LoopingAudioPlayer : ILoopingAudioPlayer
         _disposed = true;
         _sampleProvider.BeatChanged -= OnSampleProviderBeatChanged;
         _sampleProvider.BranchJumped -= OnSampleProviderBranchJumped;
+        _sampleProvider.PlaybackCompleted -= OnSampleProviderPlaybackCompleted;
         _waveOut.Stop();
         _waveOut.Dispose();
         _state = PlaybackState.Disposed;
         BeatChanged = null;
         BranchJumped = null;
         StateChanged = null;
+        PlaybackCompleted = null;
     }
 
     private void OnSampleProviderBeatChanged(object? sender, BeatChangedEventArgs e)
@@ -134,6 +145,18 @@ public sealed class LoopingAudioPlayer : ILoopingAudioPlayer
         }
 
         BranchJumped?.Invoke(this, e);
+    }
+
+    private void OnSampleProviderPlaybackCompleted(object? sender, EventArgs e)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _waveOut.Stop();
+        SetState(PlaybackState.Stopped);
+        PlaybackCompleted?.Invoke(this, EventArgs.Empty);
     }
 
     private void SetState(PlaybackState state)

@@ -3,7 +3,7 @@
 </p>
 
 <h1 align="center">
-  EternalLoop For Windows (1.2.0)
+  EternalLoop 1.2.0 For Windows
 </h1>
 
 <p align="center">
@@ -26,7 +26,7 @@
 
 ---
 
-> EternalLoop is a Windows-native infinite music player that analyzes local audio files, detects beats, builds musical branch points, and keeps playback looping without relying on any kind of external API.
+> EternalLoop is a local-first Windows-native infinite music player that analyzes local audio files, detects beats, builds musical branch points, and keeps playback looping without relying on any kind of external API.
 
 ---
 
@@ -331,6 +331,12 @@ Before publishing a release build with local AI assets, run:
 
 ```powershell
 .\tools\download-ai-models.ps1
+```
+
+Recommended release automation:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\publish-release-win-x64.ps1
 ```
 
 ```powershell

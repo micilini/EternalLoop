@@ -58,7 +58,11 @@ public sealed class TrackRuntimePackageRebuilder
         {
             JumpProbability = Clamp(tuning.JumpProbability, 0, 1),
             JumpCooldownBeats = Math.Max(0, tuning.JumpCooldown),
-            FirstPassLinearPlaybackRatio = Clamp(tuning.FirstPassLinearPlaybackRatio, 0, 1)
+            FirstPassLinearPlaybackRatio = Clamp(tuning.FirstPassLinearPlaybackRatio, 0, 1),
+            EnableJumpShapingKnobs = true,
+            NormalizeChanceDeltaByTempo = true,
+            WeightedBranchSelection = true,
+            RepeatPenalty = 0.35
         };
     }
 

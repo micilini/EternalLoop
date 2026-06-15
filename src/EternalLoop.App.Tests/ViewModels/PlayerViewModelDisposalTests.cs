@@ -27,6 +27,7 @@ public sealed class PlayerViewModelDisposalTests
         player.BeatChangedSubscriberCount.Should().Be(1);
         player.BranchJumpedSubscriberCount.Should().Be(1);
         player.StateChangedSubscriberCount.Should().Be(1);
+        player.PlaybackCompletedSubscriberCount.Should().Be(1);
 
         viewModel.Dispose();
 
@@ -35,6 +36,7 @@ public sealed class PlayerViewModelDisposalTests
         player.BeatChangedSubscriberCount.Should().Be(0);
         player.BranchJumpedSubscriberCount.Should().Be(0);
         player.StateChangedSubscriberCount.Should().Be(0);
+        player.PlaybackCompletedSubscriberCount.Should().Be(0);
     }
 
     [Fact]
@@ -161,6 +163,7 @@ public sealed class PlayerViewModelDisposalTests
         private EventHandler<BeatChangedEventArgs>? _beatChanged;
         private EventHandler<BranchJumpEventArgs>? _branchJumped;
         private EventHandler<PlaybackStateChangedEventArgs>? _stateChanged;
+        private EventHandler? _playbackCompleted;
 
         public event EventHandler<BeatChangedEventArgs>? BeatChanged
         {
@@ -180,11 +183,19 @@ public sealed class PlayerViewModelDisposalTests
             remove => _stateChanged -= value;
         }
 
+        public event EventHandler? PlaybackCompleted
+        {
+            add => _playbackCompleted += value;
+            remove => _playbackCompleted -= value;
+        }
+
         public int BeatChangedSubscriberCount => _beatChanged?.GetInvocationList().Length ?? 0;
 
         public int BranchJumpedSubscriberCount => _branchJumped?.GetInvocationList().Length ?? 0;
 
         public int StateChangedSubscriberCount => _stateChanged?.GetInvocationList().Length ?? 0;
+
+        public int PlaybackCompletedSubscriberCount => _playbackCompleted?.GetInvocationList().Length ?? 0;
 
         public int StopCount { get; private set; }
 
@@ -193,6 +204,10 @@ public sealed class PlayerViewModelDisposalTests
         public int PlayCount { get; private set; }
 
         public int SeekCount { get; private set; }
+
+        public int SetBringItHomeCount { get; private set; }
+
+        public bool BringItHomeEnabled { get; private set; }
 
         public double LastSeekSeconds { get; private set; }
 
@@ -240,6 +255,12 @@ public sealed class PlayerViewModelDisposalTests
             PositionSeconds = seconds;
         }
 
+        public void SetBringItHome(bool enabled)
+        {
+            SetBringItHomeCount++;
+            BringItHomeEnabled = enabled;
+        }
+
         public void Dispose()
         {
             DisposeCount++;
@@ -270,6 +291,12 @@ public sealed class PlayerViewModelDisposalTests
                 RandomValue = 0,
                 Reason = "Test"
             });
+        }
+
+        public void RaisePlaybackCompleted()
+        {
+            State = PlaybackState.Stopped;
+            _playbackCompleted?.Invoke(this, EventArgs.Empty);
         }
     }
 }

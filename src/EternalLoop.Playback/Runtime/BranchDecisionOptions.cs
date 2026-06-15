@@ -18,5 +18,13 @@ public sealed class BranchDecisionOptions
 
     public bool RotateBranches { get; init; } = true;
 
+    public bool EnableJumpShapingKnobs { get; init; } = true;
+
+    public bool NormalizeChanceDeltaByTempo { get; init; } = true;
+
+    public bool WeightedBranchSelection { get; init; } = true;
+
+    public double RepeatPenalty { get; init; } = 0.35;
+
     public BranchEscapeOptions EscapeOptions { get; init; } = new();
 }

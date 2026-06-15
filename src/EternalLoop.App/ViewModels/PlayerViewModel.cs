@@ -40,6 +40,7 @@ public sealed class PlayerViewModel : INotifyPropertyChanged, IDisposable
     private ImageSource? _trackArtwork;
     private bool _hasTrackArtwork;
     private bool _isPlaying;
+    private bool _isBringItHomeEnabled;
     private double _positionSeconds;
     private double _trackDurationSeconds;
     private string _positionText;
@@ -87,6 +88,7 @@ public sealed class PlayerViewModel : INotifyPropertyChanged, IDisposable
 
         StopCommand = new RelayCommand(Stop);
         PlayPauseCommand = new AsyncRelayCommand(PlayPauseAsync, onError: HandleCommandError);
+        BringItHomeCommand = new RelayCommand(ToggleBringItHome);
         AnalyzeAgainCommand = new RelayCommand(AnalyzeAgain);
         BeginSeekCommand = new RelayCommand(BeginSeek);
         CommitSeekCommand = new ParameterRelayCommand(CommitSeek);
@@ -162,6 +164,12 @@ public sealed class PlayerViewModel : INotifyPropertyChanged, IDisposable
         }
     }
 
+    public bool IsBringItHomeEnabled
+    {
+        get => _isBringItHomeEnabled;
+        private set => SetProperty(ref _isBringItHomeEnabled, value);
+    }
+
     public string PositionText
     {
         get => _positionText;
@@ -224,6 +232,8 @@ public sealed class PlayerViewModel : INotifyPropertyChanged, IDisposable
 
     public ICommand PlayPauseCommand { get; }
 
+    public ICommand BringItHomeCommand { get; }
+
     public ICommand AnalyzeAgainCommand { get; }
 
     public ICommand BeginSeekCommand { get; }
@@ -258,6 +268,7 @@ public sealed class PlayerViewModel : INotifyPropertyChanged, IDisposable
             _player.BeatChanged += OnBeatChanged;
             _player.BranchJumped += OnBranchJumped;
             _player.StateChanged += OnStateChanged;
+            _player.PlaybackCompleted += OnPlaybackCompleted;
             _initialized = true;
             AnalyzeAgainStatusText = string.Empty;
         }
@@ -288,6 +299,7 @@ public sealed class PlayerViewModel : INotifyPropertyChanged, IDisposable
             _player.BeatChanged -= OnBeatChanged;
             _player.BranchJumped -= OnBranchJumped;
             _player.StateChanged -= OnStateChanged;
+            _player.PlaybackCompleted -= OnPlaybackCompleted;
             TryStopAndDisposePlayer();
             _player = null;
         }
@@ -344,6 +356,7 @@ public sealed class PlayerViewModel : INotifyPropertyChanged, IDisposable
         _logger.Log(AppLogLevel.Error, "Playback command failed.", exception);
         _positionTimer.Stop();
         IsPlaying = false;
+        IsBringItHomeEnabled = false;
         AnalyzeAgainStatusText = "Playback action failed. Try stopping and starting again.";
     }
 
@@ -374,6 +387,27 @@ public sealed class PlayerViewModel : INotifyPropertyChanged, IDisposable
         PositionSeconds = 0;
         CurrentBeatIndex = 0;
         IsPlaying = false;
+        IsBringItHomeEnabled = false;
+    }
+
+    private void ToggleBringItHome()
+    {
+        if (_disposed || _player is null)
+        {
+            return;
+        }
+
+        try
+        {
+            bool enabled = !IsBringItHomeEnabled;
+            _player.SetBringItHome(enabled);
+            IsBringItHomeEnabled = enabled;
+        }
+        catch (Exception exception) when (exception is PlaybackException or ObjectDisposedException or InvalidOperationException)
+        {
+            IsBringItHomeEnabled = false;
+            AnalyzeAgainStatusText = "Could not change playback finish mode.";
+        }
     }
 
     private void BeginSeek()
@@ -446,6 +480,7 @@ public sealed class PlayerViewModel : INotifyPropertyChanged, IDisposable
             _player.BeatChanged -= OnBeatChanged;
             _player.BranchJumped -= OnBranchJumped;
             _player.StateChanged -= OnStateChanged;
+            _player.PlaybackCompleted -= OnPlaybackCompleted;
             TryStopAndDisposePlayer();
             _player = null;
         }
@@ -536,6 +571,11 @@ public sealed class PlayerViewModel : INotifyPropertyChanged, IDisposable
 
             IsPlaying = e.State == PlaybackState.Playing;
 
+            if (e.State == PlaybackState.Stopped)
+            {
+                IsBringItHomeEnabled = false;
+            }
+
             if (IsPlaying)
             {
                 _positionTimer.Start();
@@ -544,6 +584,26 @@ public sealed class PlayerViewModel : INotifyPropertyChanged, IDisposable
             {
                 _positionTimer.Stop();
             }
+        });
+    }
+
+    private void OnPlaybackCompleted(object? sender, EventArgs e)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        QueueOnUiThread(() =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            IsPlaying = false;
+            IsBringItHomeEnabled = false;
+            _positionTimer.Stop();
         });
     }
 

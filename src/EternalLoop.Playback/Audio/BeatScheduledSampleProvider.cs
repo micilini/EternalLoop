@@ -22,6 +22,8 @@ public sealed class BeatScheduledSampleProvider : ISampleProvider
     private int _currentBeatEndSample;
     private BranchTransitionKind _currentTransitionKind = BranchTransitionKind.Linear;
     private bool _pendingInitialBeatChanged = true;
+    private bool _bringItHome;
+    private bool _completed;
 
     public BeatScheduledSampleProvider(
         LoadedAudio audio,
@@ -66,6 +68,8 @@ public sealed class BeatScheduledSampleProvider : ISampleProvider
     public event EventHandler<BeatChangedEventArgs>? BeatChanged;
 
     public event EventHandler<BranchJumpEventArgs>? BranchJumped;
+
+    public event EventHandler? PlaybackCompleted;
 
     public WaveFormat WaveFormat { get; }
 
@@ -128,8 +132,24 @@ public sealed class BeatScheduledSampleProvider : ISampleProvider
 
             while (written < count)
             {
+                if (_completed)
+                {
+                    Array.Clear(buffer, offset + written, count - written);
+                    written = count;
+                    break;
+                }
+
                 if (_currentSample >= _currentBeatEndSample || _currentSample >= _totalSamples)
                 {
+                    if (_bringItHome && IsLastLinearBeat())
+                    {
+                        _completed = true;
+                        pendingEvents.AddPlaybackCompleted();
+                        Array.Clear(buffer, offset + written, count - written);
+                        written = count;
+                        break;
+                    }
+
                     BeatTransition transition = MoveToNextBeat();
 
                     if (transition.BranchJump is not null)
@@ -162,6 +182,15 @@ public sealed class BeatScheduledSampleProvider : ISampleProvider
         return count;
     }
 
+    public void SetBringItHome(bool enabled)
+    {
+        lock (_sync)
+        {
+            _bringItHome = enabled;
+            _branchDecisionEngine.SetBringItHome(enabled);
+        }
+    }
+
     public void Reset()
     {
         BeatChangedEventArgs changedEvent;
@@ -169,6 +198,8 @@ public sealed class BeatScheduledSampleProvider : ISampleProvider
         lock (_sync)
         {
             _branchDecisionEngine.Reset();
+            _bringItHome = false;
+            _completed = false;
             changedEvent = SetBeat(0);
             _currentTransitionKind = BranchTransitionKind.Linear;
             _pendingInitialBeatChanged = false;
@@ -196,6 +227,8 @@ public sealed class BeatScheduledSampleProvider : ISampleProvider
             _currentTransitionKind = BranchTransitionKind.Linear;
             _pendingInitialBeatChanged = false;
             _branchDecisionEngine.Reset();
+            _bringItHome = false;
+            _completed = false;
             changedEvent = CreateBeatChangedEventArgs(beat);
         }
 
@@ -331,6 +364,12 @@ public sealed class BeatScheduledSampleProvider : ISampleProvider
         return 0;
     }
 
+    private bool IsLastLinearBeat()
+    {
+        RuntimeBeat currentBeat = _track.Beats[_currentBeatIndex];
+        return _currentBeatIndex == _track.Beats.Count - 1 || currentBeat.Next is null;
+    }
+
     private double SampleToSeconds(int sample)
     {
         return sample / (double)(_audio.SampleRate * _audio.Channels);
@@ -354,6 +393,7 @@ public sealed class BeatScheduledSampleProvider : ISampleProvider
         private BranchJumpEventArgs? _firstBranchJump;
         private List<BeatChangedEventArgs>? _additionalBeatChanges;
         private List<BranchJumpEventArgs>? _additionalBranchJumps;
+        private bool _playbackCompleted;
 
         public void AddBeatChanged(BeatChangedEventArgs eventArgs)
         {
@@ -377,6 +417,11 @@ public sealed class BeatScheduledSampleProvider : ISampleProvider
 
             _additionalBranchJumps ??= [];
             _additionalBranchJumps.Add(eventArgs);
+        }
+
+        public void AddPlaybackCompleted()
+        {
+            _playbackCompleted = true;
         }
 
         public readonly void Dispatch(BeatScheduledSampleProvider provider)
@@ -405,6 +450,11 @@ public sealed class BeatScheduledSampleProvider : ISampleProvider
                 {
                     provider.BeatChanged?.Invoke(provider, eventArgs);
                 }
+            }
+
+            if (_playbackCompleted)
+            {
+                provider.PlaybackCompleted?.Invoke(provider, EventArgs.Empty);
             }
         }
     }

@@ -8,7 +8,7 @@ namespace EternalLoop.Playback.Tests.Runtime;
 public sealed class BranchDecisionEngineTests
 {
     [Fact]
-    public void FirstPassLinearPlaybackRatioShouldNotBlockEarlyLabStyleJump()
+    public void FirstPassRatioBlocksEarlyJump()
     {
         var track = PlaybackFixtures.BuildTrack([PlaybackFixtures.Branch()]);
         var engine = CreateEngine(
@@ -20,13 +20,14 @@ public sealed class BranchDecisionEngineTests
 
         BranchDecisionResult result = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
 
-        result.UsedBranch.Should().BeTrue();
-        result.Reason.Should().Be("Branch selected");
-        result.NextBeat.Should().BeSameAs(track.Beats[3]);
+        result.UsedBranch.Should().BeFalse();
+        result.BlockedByFirstPass.Should().BeTrue();
+        result.Reason.Should().Be("First pass linear playback");
+        result.NextBeat.Should().BeSameAs(track.Beats[1]);
     }
 
     [Fact]
-    public void JumpCooldownBeatsShouldNotBlockLabStyleBackToBackBranches()
+    public void JumpCooldownBlocksBackToBackJumps()
     {
         var track = PlaybackFixtures.BuildTrack(
         [
@@ -44,30 +45,31 @@ public sealed class BranchDecisionEngineTests
         BranchDecisionResult second = engine.DecideNextBeat(track.Beats[2], track.Beats[0]);
 
         first.UsedBranch.Should().BeTrue();
-        second.UsedBranch.Should().BeTrue();
-        second.Reason.Should().Be("Branch selected");
-        second.NextBeat.Should().BeSameAs(track.Beats[4]);
+        second.UsedBranch.Should().BeFalse();
+        second.BlockedByCooldown.Should().BeTrue();
+        second.Reason.Should().Be("Jump cooldown active");
+        second.NextBeat.Should().BeSameAs(track.Beats[3]);
     }
 
     [Fact]
-    public void JumpProbabilityShouldNotCapLabChanceCurve()
+    public void JumpProbabilityScalesEffectiveChance()
     {
         var track = PlaybackFixtures.BuildTrack([PlaybackFixtures.Branch()]);
         var engine = CreateEngine(
-            jumpProbability: 0.22,
-            randomValue: 1,
-            minChance: 0.18,
-            maxChance: 0.50,
-            delta: 0.018);
+            jumpProbability: 0.25,
+            randomProvider: new SequenceBranchRandomProvider(0.2, 0.12),
+            minChance: 0.5,
+            maxChance: 0.5,
+            firstPassRatio: 0);
 
-        for (int index = 0; index < 4; index++)
-        {
-            BranchDecisionResult result = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
-            result.UsedBranch.Should().BeFalse();
-        }
+        BranchDecisionResult rejected = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
+        BranchDecisionResult accepted = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
 
-        engine.BranchChance.Should().BeGreaterThan(0.22);
-        engine.BranchChance.Should().BeLessThanOrEqualTo(0.50);
+        rejected.UsedBranch.Should().BeFalse();
+        rejected.Reason.Should().Be("Random rejected branch");
+        rejected.ChanceBeforeDecision.Should().Be(0.5);
+        accepted.UsedBranch.Should().BeTrue();
+        accepted.Reason.Should().Be("Branch selected");
     }
 
     [Fact]
@@ -90,7 +92,7 @@ public sealed class BranchDecisionEngineTests
     }
 
     [Fact]
-    public void JumpProbabilityZeroShouldNotDisableLabStyleBranch()
+    public void JumpProbabilityZeroDisablesJump()
     {
         var track = PlaybackFixtures.BuildTrack([PlaybackFixtures.Branch()]);
         var engine = CreateEngine(
@@ -101,8 +103,59 @@ public sealed class BranchDecisionEngineTests
 
         BranchDecisionResult result = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
 
-        result.UsedBranch.Should().BeTrue();
-        result.Reason.Should().Be("Branch selected");
+        result.UsedBranch.Should().BeFalse();
+        result.Reason.Should().Be("Random rejected branch");
+    }
+
+    [Fact]
+    public void LegacyModeReproducesFlatDeltaRampAndPrivateRotation()
+    {
+        RuntimeTrack track = PlaybackFixtures.BuildTrack(
+        [
+            PlaybackFixtures.Branch(id: 1, fromBeat: 1, toBeat: 3),
+            PlaybackFixtures.Branch(id: 2, fromBeat: 1, toBeat: 4)
+        ]);
+        var engine = CreateEngine(
+            jumpProbability: 0,
+            randomProvider: new SequenceBranchRandomProvider(1, 0, 0),
+            minChance: 0.18,
+            maxChance: 1,
+            delta: 0.018,
+            cooldown: 12,
+            firstPassRatio: 0.78,
+            enableJumpShapingKnobs: false,
+            normalizeChanceDeltaByTempo: false,
+            weightedBranchSelection: false);
+
+        BranchDecisionResult rejected = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
+        BranchDecisionResult first = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
+        BranchDecisionResult second = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
+
+        rejected.UsedBranch.Should().BeFalse();
+        rejected.ChanceAfterDecision.Should().BeApproximately(0.198, 0.000001);
+        first.NextBeat.Should().BeSameAs(track.Beats[3]);
+        second.NextBeat.Should().BeSameAs(track.Beats[4]);
+    }
+
+    [Fact]
+    public void LegacyModeConsumesSameRngCountWithSingleCandidate()
+    {
+        var track = PlaybackFixtures.BuildTrack([PlaybackFixtures.Branch()]);
+        var random = new CountingBranchRandomProvider(1);
+        var engine = CreateEngine(
+            jumpProbability: 0,
+            randomProvider: random,
+            minChance: 0.18,
+            maxChance: 1,
+            cooldown: 12,
+            firstPassRatio: 0.78,
+            enableJumpShapingKnobs: false,
+            normalizeChanceDeltaByTempo: false,
+            weightedBranchSelection: false);
+
+        engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
+
+        random.Count.Should().Be(1);
     }
 
     [Fact]
@@ -221,6 +274,8 @@ public sealed class BranchDecisionEngineTests
             randomValue: 1,
             minChance: 0,
             maxChance: 0,
+            cooldown: 12,
+            firstPassRatio: 0.9,
             escapeOptions: EndGuardOptions(forceJump: true));
 
         BranchDecisionResult result = engine.DecideNextBeat(track.Beats[7], track.Beats[0]);
@@ -263,7 +318,12 @@ public sealed class BranchDecisionEngineTests
         ]);
         RuntimeBeat seedBeat = track.Beats[1];
         RuntimeBranchEdge[] originalNeighbors = seedBeat.Neighbors.ToArray();
-        var engine = CreateEngine(jumpProbability: 1, randomValue: 0, minChance: 1, maxChance: 1);
+        var engine = CreateEngine(
+            jumpProbability: 1,
+            randomValue: 0,
+            minChance: 1,
+            maxChance: 1,
+            weightedBranchSelection: false);
 
         BranchDecisionResult result = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
 
@@ -281,7 +341,12 @@ public sealed class BranchDecisionEngineTests
         ]);
         RuntimeBeat seedBeat = track.Beats[1];
         RuntimeBranchEdge[] originalNeighbors = seedBeat.Neighbors.ToArray();
-        var engine = CreateEngine(jumpProbability: 1, randomValue: 0, minChance: 1, maxChance: 1);
+        var engine = CreateEngine(
+            jumpProbability: 1,
+            randomValue: 0,
+            minChance: 1,
+            maxChance: 1,
+            weightedBranchSelection: false);
 
         BranchDecisionResult first = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
         BranchDecisionResult second = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
@@ -306,7 +371,8 @@ public sealed class BranchDecisionEngineTests
             randomValue: 0,
             minChance: 1,
             maxChance: 1,
-            rotateBranches: false);
+            rotateBranches: false,
+            weightedBranchSelection: false);
 
         BranchDecisionResult first = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
         BranchDecisionResult second = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
@@ -353,7 +419,8 @@ public sealed class BranchDecisionEngineTests
             jumpProbability: 1,
             randomProvider: new SequenceBranchRandomProvider(1, 0),
             minChance: 0.5,
-            maxChance: 1);
+            maxChance: 1,
+            weightedBranchSelection: false);
 
         BranchDecisionResult rejected = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
         BranchDecisionResult accepted = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
@@ -361,6 +428,102 @@ public sealed class BranchDecisionEngineTests
         rejected.UsedBranch.Should().BeFalse();
         accepted.UsedBranch.Should().BeTrue();
         accepted.NextBeat.Should().BeSameAs(track.Beats[3]);
+    }
+
+    [Fact]
+    public void NormalizedChanceDeltaScalesByBeatDuration()
+    {
+        RuntimeTrack track = BuildTrackWithDurations([1.0, 1.0, 1.0, 1.0, 1.0], [PlaybackFixtures.Branch()]);
+        var engine = CreateEngine(
+            jumpProbability: 1,
+            randomValue: 1,
+            minChance: 0.10,
+            maxChance: 1,
+            delta: 0.05,
+            normalizeChanceDeltaByTempo: true);
+
+        BranchDecisionResult result = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
+
+        result.ChanceAfterDecision.Should().BeApproximately(0.20, 0.000001);
+    }
+
+    [Fact]
+    public void FlatChanceDeltaIgnoresBeatDurationWhenNormalizationDisabled()
+    {
+        RuntimeTrack track = BuildTrackWithDurations([1.0, 1.0, 1.0, 1.0, 1.0], [PlaybackFixtures.Branch()]);
+        var engine = CreateEngine(
+            jumpProbability: 1,
+            randomValue: 1,
+            minChance: 0.10,
+            maxChance: 1,
+            delta: 0.05,
+            normalizeChanceDeltaByTempo: false);
+
+        BranchDecisionResult result = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
+
+        result.ChanceAfterDecision.Should().BeApproximately(0.15, 0.000001);
+    }
+
+    [Fact]
+    public void WeightedBranchSelectionFavorsSmallerDistance()
+    {
+        RuntimeTrack track = PlaybackFixtures.BuildTrack(
+        [
+            PlaybackFixtures.Branch(id: 1, fromBeat: 1, toBeat: 3, distance: 1),
+            PlaybackFixtures.Branch(id: 2, fromBeat: 1, toBeat: 4, distance: 100)
+        ]);
+        var engine = CreateEngine(
+            jumpProbability: 1,
+            randomProvider: new SequenceBranchRandomProvider(0, 0),
+            minChance: 1,
+            maxChance: 1,
+            weightedBranchSelection: true);
+
+        BranchDecisionResult result = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
+
+        result.UsedBranch.Should().BeTrue();
+        result.NextBeat.Should().BeSameAs(track.Beats[3]);
+        result.CandidateCountConsidered.Should().Be(2);
+    }
+
+    [Fact]
+    public void RepeatPenaltyAvoidsRepeatingLastDestinationFromSameSeed()
+    {
+        RuntimeTrack track = PlaybackFixtures.BuildTrack(
+        [
+            PlaybackFixtures.Branch(id: 1, fromBeat: 1, toBeat: 3, distance: 1),
+            PlaybackFixtures.Branch(id: 2, fromBeat: 1, toBeat: 4, distance: 4)
+        ]);
+        var engine = CreateEngine(
+            jumpProbability: 1,
+            randomProvider: new SequenceBranchRandomProvider(0, 0, 0.5, 0),
+            minChance: 1,
+            maxChance: 1,
+            weightedBranchSelection: true,
+            repeatPenalty: 0.35);
+
+        BranchDecisionResult first = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
+        BranchDecisionResult second = engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
+
+        first.NextBeat.Should().BeSameAs(track.Beats[3]);
+        second.NextBeat.Should().BeSameAs(track.Beats[4]);
+    }
+
+    [Fact]
+    public void WeightedBranchSelectionWithSingleCandidateDoesNotConsumeSelectionRng()
+    {
+        var track = PlaybackFixtures.BuildTrack([PlaybackFixtures.Branch()]);
+        var random = new CountingBranchRandomProvider(0);
+        var engine = CreateEngine(
+            jumpProbability: 1,
+            randomProvider: random,
+            minChance: 1,
+            maxChance: 1,
+            weightedBranchSelection: true);
+
+        engine.DecideNextBeat(track.Beats[0], track.Beats[0]);
+
+        random.Count.Should().Be(1);
     }
 
     [Fact]
@@ -479,7 +642,11 @@ public sealed class BranchDecisionEngineTests
         int cooldown = 0,
         double firstPassRatio = 0,
         BranchEscapeOptions? escapeOptions = null,
-        bool rotateBranches = true)
+        bool rotateBranches = true,
+        bool enableJumpShapingKnobs = true,
+        bool normalizeChanceDeltaByTempo = true,
+        bool weightedBranchSelection = true,
+        double repeatPenalty = 0.35)
     {
         return CreateEngine(
             jumpProbability,
@@ -490,7 +657,11 @@ public sealed class BranchDecisionEngineTests
             cooldown,
             firstPassRatio,
             escapeOptions,
-            rotateBranches);
+            rotateBranches,
+            enableJumpShapingKnobs,
+            normalizeChanceDeltaByTempo,
+            weightedBranchSelection,
+            repeatPenalty);
     }
 
     private static BranchDecisionEngine CreateEngine(
@@ -502,7 +673,11 @@ public sealed class BranchDecisionEngineTests
         int cooldown = 0,
         double firstPassRatio = 0,
         BranchEscapeOptions? escapeOptions = null,
-        bool rotateBranches = true)
+        bool rotateBranches = true,
+        bool enableJumpShapingKnobs = true,
+        bool normalizeChanceDeltaByTempo = true,
+        bool weightedBranchSelection = true,
+        double repeatPenalty = 0.35)
     {
         return new BranchDecisionEngine(
             new BranchDecisionOptions
@@ -514,6 +689,10 @@ public sealed class BranchDecisionEngineTests
                 JumpCooldownBeats = cooldown,
                 FirstPassLinearPlaybackRatio = firstPassRatio,
                 RotateBranches = rotateBranches,
+                EnableJumpShapingKnobs = enableJumpShapingKnobs,
+                NormalizeChanceDeltaByTempo = normalizeChanceDeltaByTempo,
+                WeightedBranchSelection = weightedBranchSelection,
+                RepeatPenalty = repeatPenalty,
                 EscapeOptions = escapeOptions ?? new BranchEscapeOptions { Enabled = false }
             },
             randomProvider);
@@ -532,6 +711,33 @@ public sealed class BranchDecisionEngineTests
             Artist = "Local",
             AudioPath = "fixture.wav",
             DurationSeconds = beatCount,
+            Beats = beats,
+            ActiveBranches = activeBranches,
+            CandidateBranches = []
+        }).Track;
+    }
+
+    private static RuntimeTrack BuildTrackWithDurations(
+        IReadOnlyList<double> durations,
+        IReadOnlyList<RuntimeBranchInput> activeBranches)
+    {
+        double start = 0;
+        List<RuntimeBeatInput> beats = [];
+
+        for (int index = 0; index < durations.Count; index++)
+        {
+            double duration = durations[index];
+            beats.Add(new RuntimeBeatInput(index, start, duration, 1));
+            start += duration;
+        }
+
+        return new TrackRuntimeBuilder().Build(new TrackRuntimeBuildRequest
+        {
+            Id = "fixture",
+            Title = "Fixture",
+            Artist = "Local",
+            AudioPath = "fixture.wav",
+            DurationSeconds = start,
             Beats = beats,
             ActiveBranches = activeBranches,
             CandidateBranches = []
@@ -559,6 +765,17 @@ public sealed class BranchDecisionEngineTests
         {
             double value = values[Math.Min(_index, values.Length - 1)];
             _index++;
+            return value;
+        }
+    }
+
+    private sealed class CountingBranchRandomProvider(double value) : IBranchRandomProvider
+    {
+        public int Count { get; private set; }
+
+        public double NextDouble()
+        {
+            Count++;
             return value;
         }
     }

@@ -94,6 +94,7 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
@@ -112,7 +113,15 @@
                                 <materialDesign:PackIcon Kind="PlayPause" Width="19" Height="19" />
                             </Button>
 
-                            <StackPanel Grid.Column="2"
+                            <Button Grid.Column="2"
+                                    Margin="8 0 0 0"
+                                    Command="{Binding BringItHomeCommand}"
+                                    Style="{StaticResource EL.Button.IconRound}"
+                                    ToolTip="Bring it home (deixar terminar)">
+                                <materialDesign:PackIcon Kind="Flag" Width="18" Height="18" />
+                            </Button>
+
+                            <StackPanel Grid.Column="3"
                                         Margin="12 0 0 0"
                                         VerticalAlignment="Center">
                                 <TextBlock Text="{Binding PositionText}"

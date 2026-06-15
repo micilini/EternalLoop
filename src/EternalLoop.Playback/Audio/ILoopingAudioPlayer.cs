@@ -8,6 +8,8 @@ public interface ILoopingAudioPlayer : IDisposable
 
     event EventHandler<PlaybackStateChangedEventArgs>? StateChanged;
 
+    event EventHandler? PlaybackCompleted;
+
     PlaybackState State { get; }
 
     int CurrentBeatIndex { get; }
@@ -23,4 +25,6 @@ public interface ILoopingAudioPlayer : IDisposable
     void Stop();
 
     void Seek(double seconds);
+
+    void SetBringItHome(bool enabled);
 }
