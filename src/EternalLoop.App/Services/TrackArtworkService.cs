@@ -19,7 +19,9 @@ public sealed class TrackArtworkService : ITrackArtworkService
     {
         try
         {
-            byte[]? artworkBytes = Id3ArtworkReader.TryReadArtwork(filePath);
+            byte[]? artworkBytes = Id3ArtworkReader.TryReadArtwork(filePath)
+                ?? Mp4ArtworkReader.TryReadArtwork(filePath);
+
             return artworkBytes is null ? null : CreateFrozenImageSource(artworkBytes);
         }
         catch (IOException)

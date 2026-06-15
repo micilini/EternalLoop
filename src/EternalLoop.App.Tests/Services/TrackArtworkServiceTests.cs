@@ -162,6 +162,159 @@ public sealed class TrackArtworkServiceTests
         });
     }
 
+    [Fact]
+    public async Task TryLoadArtwork_ReturnsImage_WhenM4aContainsCovrJpeg()
+    {
+        await RunStaAsync(() =>
+        {
+            string path = WriteTempM4aFile(CreateM4aFileWithCovr(CreatePngBytes(Colors.Red), 13));
+            try
+            {
+                var service = new TrackArtworkService();
+                ImageSource? image = service.TryLoadArtwork(path);
+                image.Should().NotBeNull();
+                AssertPixelColor(image!, Colors.Red);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        });
+    }
+
+    [Fact]
+    public async Task TryLoadArtwork_ReturnsImage_WhenM4aContainsCovrPng()
+    {
+        await RunStaAsync(() =>
+        {
+            string path = WriteTempM4aFile(CreateM4aFileWithCovr(CreatePngBytes(Colors.Blue), 14));
+            try
+            {
+                var service = new TrackArtworkService();
+                ImageSource? image = service.TryLoadArtwork(path);
+                image.Should().NotBeNull();
+                AssertPixelColor(image!, Colors.Blue);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        });
+    }
+
+    [Fact]
+    public async Task TryLoadArtwork_ReturnsNull_WhenM4aHasNoCovr()
+    {
+        await RunStaAsync(() =>
+        {
+            string path = WriteTempM4aFile(CreateM4aFile());
+            try
+            {
+                var service = new TrackArtworkService();
+                service.TryLoadArtwork(path).Should().BeNull();
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        });
+    }
+
+    [Fact]
+    public async Task TryLoadArtwork_ReturnsNull_WhenM4aCovrImageBytesAreInvalid()
+    {
+        await RunStaAsync(() =>
+        {
+            string path = WriteTempM4aFile(CreateM4aFileWithCovr(new byte[] { 0x01, 0x02 }, 13));
+            try
+            {
+                var service = new TrackArtworkService();
+                service.TryLoadArtwork(path).Should().BeNull();
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        });
+    }
+
+    [Fact]
+    public async Task TryLoadArtwork_DoesNotLockM4aFile_AfterLoadingArtwork()
+    {
+        await RunStaAsync(() =>
+        {
+            string path = WriteTempM4aFile(CreateM4aFileWithCovr(CreatePngBytes(Colors.Orange), 14));
+            try
+            {
+                var service = new TrackArtworkService();
+                service.TryLoadArtwork(path).Should().NotBeNull();
+                
+                using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+                {
+                }
+                
+                File.Delete(path);
+            }
+            finally
+            {
+                if (File.Exists(path)) File.Delete(path);
+            }
+        });
+    }
+
+    // Helper methods for M4A tests
+
+    private static byte[] CreateM4aFile()
+    {
+        return new byte[] { 0x00, 0x00, 0x00, 0x08, (byte)'f', (byte)'t', (byte)'y', (byte)'p' }; // Minimal file
+    }
+
+    private static byte[] CreateM4aFileWithCovr(byte[] imageBytes, int dataType)
+    {
+        // 1. Create data atom
+        byte[] dataPayload = new byte[8 + imageBytes.Length];
+        WriteBigEndian(dataType, dataPayload.AsSpan(0, 4));
+        // dataPayload[4..8] is 0 (locale/reserved)
+        Buffer.BlockCopy(imageBytes, 0, dataPayload, 8, imageBytes.Length);
+        byte[] dataAtom = CreateAtom("data", dataPayload);
+
+        // 2. Create covr atom
+        byte[] covrAtom = CreateAtom("covr", dataAtom);
+
+        // 3. Create ilst atom
+        byte[] ilstAtom = CreateAtom("ilst", covrAtom);
+
+        // 4. Create meta atom
+        byte[] metaPayload = new byte[4 + ilstAtom.Length];
+        // metaPayload[0..4] is 0 (version/flags)
+        Buffer.BlockCopy(ilstAtom, 0, metaPayload, 4, ilstAtom.Length);
+        byte[] metaAtom = CreateAtom("meta", metaPayload);
+
+        // 5. Create udta atom
+        byte[] udtaAtom = CreateAtom("udta", metaAtom);
+
+        // 6. Create moov atom
+        byte[] moovAtom = CreateAtom("moov", udtaAtom);
+
+        return moovAtom;
+    }
+
+    private static byte[] CreateAtom(string type, byte[] content)
+    {
+        byte[] atom = new byte[8 + content.Length];
+        WriteBigEndian(content.Length + 8, atom.AsSpan(0, 4));
+        Encoding.ASCII.GetBytes(type).CopyTo(atom.AsSpan(4, 4));
+        Buffer.BlockCopy(content, 0, atom, 8, content.Length);
+        return atom;
+    }
+
+    private static string WriteTempM4aFile(byte[] content)
+    {
+        string path = Path.Combine(Path.GetTempPath(), $"EternalLoop.Artwork.{Guid.NewGuid():N}.m4a");
+        File.WriteAllBytes(path, content);
+        return path;
+    }
+
     private static byte[] CreateMp3File(byte[] tagBytes)
     {
         byte[] audioBytes = [0x11, 0x22, 0x33, 0x44];
