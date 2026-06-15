@@ -1,0 +1,13 @@
+.vs/
+.vscode/
+bin/
+obj/
+TestResults/
+*.user
+*.suo
+*.rsuser
+*.zip
+
+/2. analysis-branchs/
+/examples/
+/_parity-reports/

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\modules\AnalysisEngine\src\EternalLoop.AnalysisEngine.Core\EternalLoop.AnalysisEngine.Core.csproj" />
+    <ProjectReference Include="..\..\modules\BranchAnalysis\src\EternalLoop.BranchAnalysis.Core\EternalLoop.BranchAnalysis.Core.csproj" />
+    <ProjectReference Include="..\EternalLoop.Playback\EternalLoop.Playback.csproj" />
+  </ItemGroup>
+
+</Project>

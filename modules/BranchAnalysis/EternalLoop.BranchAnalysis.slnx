@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/tests/" />
+  <Project Path="src/EternalLoop.BranchAnalysis.Cli/EternalLoop.BranchAnalysis.Cli.csproj" />
+  <Project Path="src/EternalLoop.BranchAnalysis.Core/EternalLoop.BranchAnalysis.Core.csproj" />
+  <Project Path="tests/EternalLoop.BranchAnalysis.Tests/EternalLoop.BranchAnalysis.Tests.csproj" />
+</Solution>

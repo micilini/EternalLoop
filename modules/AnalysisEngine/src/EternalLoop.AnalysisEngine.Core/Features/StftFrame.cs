@@ -1,0 +1,8 @@
+namespace EternalLoop.AnalysisEngine.Core.Features;
+
+internal sealed class StftFrame
+{
+    public required float[] Magnitudes { get; init; }
+
+    public required float[] PowerSpectrum { get; init; }
+}

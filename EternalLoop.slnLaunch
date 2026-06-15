@@ -1,0 +1,11 @@
+[
+  {
+    "Name": "EternalLoop.App",
+    "Projects": [
+      {
+        "Path": "src\\EternalLoop.App\\EternalLoop.App.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

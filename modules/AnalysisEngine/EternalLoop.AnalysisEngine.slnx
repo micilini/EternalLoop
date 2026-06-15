@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/artifacts/">
+    <File Path=".gitkeep" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+  </Folder>
+  <Folder Name="/src/" />
+  <Folder Name="/tests/" />
+  <Folder Name="/tools/" />
+  <Project Path="src/EternalLoop.AnalysisEngine.Cli/EternalLoop.AnalysisEngine.Cli.csproj" />
+  <Project Path="src/EternalLoop.AnalysisEngine.Core/EternalLoop.AnalysisEngine.Core.csproj" />
+  <Project Path="tests/EternalLoop.AnalysisEngine.Tests/EternalLoop.AnalysisEngine.Tests.csproj" />
+</Solution>

@@ -1,26 +1,37 @@
+# Visual Studio / Rider / local IDE state
 .vs/
-bin/
-obj/
-**/bin/
-**/obj/
+.idea/
 *.user
 *.suo
 *.rsuser
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+
+# Test outputs
 TestResults/
-publish/
-*.log
+coverage/
+coverage.xml
+*.trx
+
+# NuGet / packages
+*.nupkg
+*.snupkg
+packages/
+
+# Local artifacts
+artifacts/
+older-files/
+docs/
 *.zip
-*.mp3
-*.wav
-*.flac
-*.m4a
-*.aac
-/audio.mp3
-/infinite-jukebox-gangnam.svg
-/gangnam-branch-calibration/
-/artifacts/gangnam-calibration/
-*.branch-calibration.csv
-*.branch-calibration.md
-*.branch-calibration.json
-EternalLoop.App/Assets/Models/DiscogsEffNet/discogs_track_embeddings-effnet-bs64-1.onnx
-EternalLoop.App/Assets/Models/DiscogsEffNet/discogs_track_embeddings-effnet-bs64-1.json
+*.7z
+*.rar
+
+# OS files
+.DS_Store
+Thumbs.db
