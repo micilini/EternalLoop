@@ -15,11 +15,12 @@ public sealed class JsonUserSettingsRepositoryTests
         EternalLoopUserSettings settings = await repository.LoadAsync();
 
         settings.Tuning.Preset.Should().Be(LoopTuningPresetCatalog.BalancedId);
-        settings.SettingsSchemaVersion.Should().Be(5);
+        settings.SettingsSchemaVersion.Should().Be(6);
         settings.Tuning.MaxBranchesPerBeat.Should().Be(6);
         settings.Tuning.JumpProbability.Should().Be(0.85);
         settings.Tuning.JumpCooldown.Should().Be(4);
         settings.Tuning.FirstPassLinearPlaybackRatio.Should().Be(0.10);
+        settings.Tuning.AnalysisBeatProvider.Should().Be(AnalysisBeatModeCatalog.EnhancedId);
     }
 
     [Fact]
@@ -126,7 +127,7 @@ public sealed class JsonUserSettingsRepositoryTests
 
         EternalLoopUserSettings loaded = await repository.LoadAsync();
 
-        loaded.SettingsSchemaVersion.Should().Be(5);
+        loaded.SettingsSchemaVersion.Should().Be(6);
         loaded.Tuning.Preset.Should().Be(LoopTuningPresetCatalog.BalancedId);
         loaded.Tuning.SimilarityThreshold.Should().Be(0.86);
         loaded.Tuning.LookaheadDepth.Should().Be(1);
@@ -165,7 +166,7 @@ public sealed class JsonUserSettingsRepositoryTests
 
         EternalLoopUserSettings loaded = await repository.LoadAsync();
 
-        loaded.SettingsSchemaVersion.Should().Be(5);
+        loaded.SettingsSchemaVersion.Should().Be(6);
         loaded.Tuning.Preset.Should().Be(LoopTuningPresetCatalog.BalancedId);
         loaded.Tuning.MaxBranchesPerBeat.Should().Be(6);
         loaded.Tuning.JumpProbability.Should().Be(0.85);
@@ -200,7 +201,7 @@ public sealed class JsonUserSettingsRepositoryTests
 
         EternalLoopUserSettings loaded = await repository.LoadAsync();
 
-        loaded.SettingsSchemaVersion.Should().Be(5);
+        loaded.SettingsSchemaVersion.Should().Be(6);
         loaded.Tuning.Preset.Should().Be(LoopTuningPresetCatalog.WildId);
         loaded.Tuning.MaxBranchesPerBeat.Should().Be(8);
         loaded.Tuning.JumpProbability.Should().Be(1.00);
@@ -235,7 +236,7 @@ public sealed class JsonUserSettingsRepositoryTests
 
         EternalLoopUserSettings loaded = await repository.LoadAsync();
 
-        loaded.SettingsSchemaVersion.Should().Be(5);
+        loaded.SettingsSchemaVersion.Should().Be(6);
         loaded.Tuning.Preset.Should().Be(LoopTuningPresetCatalog.ConservativeId);
         loaded.Tuning.MaxBranchesPerBeat.Should().Be(2);
         loaded.Tuning.JumpProbability.Should().Be(0.35);
@@ -270,7 +271,7 @@ public sealed class JsonUserSettingsRepositoryTests
 
         EternalLoopUserSettings loaded = await repository.LoadAsync();
 
-        loaded.SettingsSchemaVersion.Should().Be(5);
+        loaded.SettingsSchemaVersion.Should().Be(6);
         loaded.Tuning.Preset.Should().Be(LoopTuningPresetCatalog.BalancedId);
         loaded.Tuning.MaxBranchesPerBeat.Should().Be(4);
         loaded.Tuning.JumpProbability.Should().Be(0.33);
@@ -292,7 +293,7 @@ public sealed class JsonUserSettingsRepositoryTests
         AssertNoTemporarySettingsFiles(paths);
 
         EternalLoopUserSettings loaded = await repository.LoadAsync();
-        loaded.SettingsSchemaVersion.Should().Be(5);
+        loaded.SettingsSchemaVersion.Should().Be(6);
         loaded.Tuning.Preset.Should().BeOneOf(
             LoopTuningPresetCatalog.ConservativeId,
             LoopTuningPresetCatalog.BalancedId,
@@ -319,7 +320,7 @@ public sealed class JsonUserSettingsRepositoryTests
         AssertNoTemporarySettingsFiles(paths);
 
         EternalLoopUserSettings loaded = await repositories[0].LoadAsync();
-        loaded.SettingsSchemaVersion.Should().Be(5);
+        loaded.SettingsSchemaVersion.Should().Be(6);
         loaded.Tuning.Preset.Should().BeOneOf(
             LoopTuningPresetCatalog.ConservativeId,
             LoopTuningPresetCatalog.BalancedId,
@@ -386,7 +387,7 @@ public sealed class JsonUserSettingsRepositoryTests
         string json = File.ReadAllText(paths.Provider.SettingsFilePath);
         using JsonDocument document = JsonDocument.Parse(json);
         document.RootElement.TryGetProperty("SettingsSchemaVersion", out JsonElement schemaVersion).Should().BeTrue();
-        schemaVersion.GetInt32().Should().Be(5);
+        schemaVersion.GetInt32().Should().Be(6);
     }
 
     private static void AssertNoTemporarySettingsFiles(TempAppPaths paths)
@@ -398,6 +399,41 @@ public sealed class JsonUserSettingsRepositoryTests
     {
         paths.Provider.EnsureDirectories();
         await File.WriteAllTextAsync(paths.Provider.SettingsFilePath, json);
+    }
+
+    [Fact]
+    public async Task LoadAsyncShouldNormalizeInvalidAnalysisBeatProviderToEnhanced()
+    {
+        using TempAppPaths paths = TempAppPaths.Create();
+        paths.Provider.EnsureDirectories();
+        await File.WriteAllTextAsync(
+            paths.Provider.SettingsFilePath,
+            """
+            {
+              "SettingsSchemaVersion": 6,
+              "Theme": "Dark",
+              "Tuning": {
+                "Preset": "Balanced",
+                "SimilarityThreshold": 0.86,
+                "LookaheadDepth": 1,
+                "MinJumpDistance": 4,
+                "MaxBranchesPerBeat": 6,
+                "JumpProbability": 0.85,
+                "JumpCooldown": 4,
+                "FirstPassLinearPlaybackRatio": 0.10,
+                "BranchQuantumType": "beats",
+                "BranchMaxThreshold": 80,
+                "AnalysisMusicalQuality": true,
+                "AnalysisBeatProvider": "InvalidMode"
+              }
+            }
+            """);
+        var repository = new JsonUserSettingsRepository(paths.Provider);
+
+        EternalLoopUserSettings loaded = await repository.LoadAsync();
+
+        loaded.SettingsSchemaVersion.Should().Be(6);
+        loaded.Tuning.AnalysisBeatProvider.Should().Be(AnalysisBeatModeCatalog.EnhancedId);
     }
 
     private sealed class TempAppPaths : IDisposable

@@ -66,7 +66,7 @@ Assert-Contains $gitAttributes '*.zip binary' $gitAttributesPath
 Assert-Contains $gitAttributes '*.7z binary' $gitAttributesPath
 Assert-Contains $gitAttributes '*.rar binary' $gitAttributesPath
 
-Assert-Contains $readme 'EternalLoop 1.2.0' $readmePath
+Assert-Contains $readme 'EternalLoop 1.3.0' $readmePath
 Assert-Contains $readme 'MP3' $readmePath
 Assert-Contains $readme 'WAV' $readmePath
 Assert-Contains $readme 'M4A' $readmePath

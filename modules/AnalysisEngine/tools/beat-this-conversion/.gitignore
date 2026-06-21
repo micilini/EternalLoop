@@ -1,0 +1,22 @@
+# Local conversion environment
+.venv/
+__pycache__/
+*.py[cod]
+
+# Heavy local artifacts
+checkpoints/
+output/
+*.ckpt
+*.onnx
+*.npz
+*.npy
+*.wav
+*.mp3
+*.m4a
+*.aac
+*.flac
+*.ogg
+
+# Verification outputs
+*.verification.json
+*.summary.json

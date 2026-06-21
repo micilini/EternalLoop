@@ -13,7 +13,7 @@ public sealed class ReleasePackagingTests
         content.Should().Contain("<SelfContained>true</SelfContained>");
         content.Should().Contain("<PublishSingleFile>true</PublishSingleFile>");
         content.Should().Contain("<PublishTrimmed>false</PublishTrimmed>");
-        content.Should().Contain(@"artifacts\publish\EternalLoop-1.2.0-win-x64");
+        content.Should().Contain(@"artifacts\publish\EternalLoop-1.3.0-win-x64");
     }
 
     [Theory]
@@ -36,9 +36,9 @@ public sealed class ReleasePackagingTests
 
         content.Should().Contain("<TargetFramework>net8.0-windows</TargetFramework>");
         content.Should().Contain("<UseWPF>true</UseWPF>");
-        content.Should().Contain("<Version>1.2.0</Version>");
-        content.Should().Contain("<AssemblyVersion>1.2.0.0</AssemblyVersion>");
-        content.Should().Contain("<FileVersion>1.2.0.0</FileVersion>");
+        content.Should().Contain("<Version>1.3.0</Version>");
+        content.Should().Contain("<AssemblyVersion>1.3.0.0</AssemblyVersion>");
+        content.Should().Contain("<FileVersion>1.3.0.0</FileVersion>");
         content.Should().Contain("<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>");
     }
 

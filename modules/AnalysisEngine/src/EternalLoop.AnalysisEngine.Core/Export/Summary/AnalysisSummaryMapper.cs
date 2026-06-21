@@ -34,7 +34,8 @@ public static class AnalysisSummaryMapper
             {
                 Raw = rawOutputPath,
                 LoopAnalysis = loopAnalysisOutputPath
-            }
+            },
+            BeatProvider = AnalysisSummaryBeatProviderDocument.From(analysis.BeatProvider)
         };
     }
 }

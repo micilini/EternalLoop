@@ -6,7 +6,7 @@ namespace EternalLoop.Tests.Core.Settings;
 public sealed class LoopTuningImpactClassifierTests
 {
     [Fact]
-    public void CompareShouldReturnNoneForIdenticalSettings()
+    public void CompareShouldReturnNoneForEquivalentSettings()
     {
         LoopTuningSettings previous = LoopTuningSettings.Balanced();
         LoopTuningSettings current = LoopTuningSettings.Balanced();
@@ -20,18 +20,27 @@ public sealed class LoopTuningImpactClassifierTests
         LoopTuningSettings previous = LoopTuningSettings.Balanced();
         LoopTuningSettings current = LoopTuningSettings.Balanced();
         current.AnalysisMusicalQuality = !previous.AnalysisMusicalQuality;
-        current.JumpProbability = 0.9;
+
+        LoopTuningImpactClassifier.Compare(previous, current).Should().Be(LoopTuningImpact.Analysis);
+    }
+
+    [Fact]
+    public void CompareShouldReturnAnalysisWhenAnalysisBeatProviderChanges()
+    {
+        LoopTuningSettings previous = LoopTuningSettings.Balanced();
+        LoopTuningSettings current = LoopTuningSettings.Balanced();
+        current.AnalysisBeatProvider = AnalysisBeatModeCatalog.ClassicId;
 
         LoopTuningImpactClassifier.Compare(previous, current).Should().Be(LoopTuningImpact.Analysis);
     }
 
     [Theory]
-    [InlineData("SimilarityThreshold")]
-    [InlineData("LookaheadDepth")]
-    [InlineData("MinJumpDistance")]
-    [InlineData("MaxBranchesPerBeat")]
-    [InlineData("BranchQuantumType")]
-    [InlineData("BranchMaxThreshold")]
+    [InlineData(nameof(LoopTuningSettings.SimilarityThreshold))]
+    [InlineData(nameof(LoopTuningSettings.LookaheadDepth))]
+    [InlineData(nameof(LoopTuningSettings.MinJumpDistance))]
+    [InlineData(nameof(LoopTuningSettings.MaxBranchesPerBeat))]
+    [InlineData(nameof(LoopTuningSettings.BranchQuantumType))]
+    [InlineData(nameof(LoopTuningSettings.BranchMaxThreshold))]
     public void CompareShouldReturnBranchesWhenBranchTuningChanges(string propertyName)
     {
         LoopTuningSettings previous = LoopTuningSettings.Balanced();
@@ -39,35 +48,33 @@ public sealed class LoopTuningImpactClassifierTests
 
         switch (propertyName)
         {
-            case "SimilarityThreshold":
-                current.SimilarityThreshold = 0.82;
+            case nameof(LoopTuningSettings.SimilarityThreshold):
+                current.SimilarityThreshold = 0.77;
                 break;
-            case "LookaheadDepth":
+            case nameof(LoopTuningSettings.LookaheadDepth):
                 current.LookaheadDepth = 2;
                 break;
-            case "MinJumpDistance":
-                current.MinJumpDistance = 8;
+            case nameof(LoopTuningSettings.MinJumpDistance):
+                current.MinJumpDistance = 12;
                 break;
-            case "MaxBranchesPerBeat":
-                current.MaxBranchesPerBeat = 8;
+            case nameof(LoopTuningSettings.MaxBranchesPerBeat):
+                current.MaxBranchesPerBeat = 3;
                 break;
-            case "BranchQuantumType":
-                current.BranchQuantumType = "segments";
+            case nameof(LoopTuningSettings.BranchQuantumType):
+                current.BranchQuantumType = "bars";
                 break;
-            case "BranchMaxThreshold":
+            case nameof(LoopTuningSettings.BranchMaxThreshold):
                 current.BranchMaxThreshold = 90;
                 break;
         }
-
-        current.JumpCooldown = 2;
 
         LoopTuningImpactClassifier.Compare(previous, current).Should().Be(LoopTuningImpact.Branches);
     }
 
     [Theory]
-    [InlineData("JumpProbability")]
-    [InlineData("JumpCooldown")]
-    [InlineData("FirstPassLinearPlaybackRatio")]
+    [InlineData(nameof(LoopTuningSettings.JumpProbability))]
+    [InlineData(nameof(LoopTuningSettings.JumpCooldown))]
+    [InlineData(nameof(LoopTuningSettings.FirstPassLinearPlaybackRatio))]
     public void CompareShouldReturnRuntimeOnlyWhenRuntimeTuningChanges(string propertyName)
     {
         LoopTuningSettings previous = LoopTuningSettings.Balanced();
@@ -75,13 +82,13 @@ public sealed class LoopTuningImpactClassifierTests
 
         switch (propertyName)
         {
-            case "JumpProbability":
-                current.JumpProbability = 0.55;
+            case nameof(LoopTuningSettings.JumpProbability):
+                current.JumpProbability = 0.5;
                 break;
-            case "JumpCooldown":
-                current.JumpCooldown = 3;
+            case nameof(LoopTuningSettings.JumpCooldown):
+                current.JumpCooldown = 9;
                 break;
-            case "FirstPassLinearPlaybackRatio":
+            case nameof(LoopTuningSettings.FirstPassLinearPlaybackRatio):
                 current.FirstPassLinearPlaybackRatio = 0.25;
                 break;
         }

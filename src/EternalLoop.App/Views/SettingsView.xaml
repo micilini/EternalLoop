@@ -81,6 +81,60 @@
                             </StackPanel>
                         </Border>
 
+                        <Border CornerRadius="18"
+                                Padding="16"
+                                Margin="0 14 0 0"
+                                BorderThickness="1"
+                                BorderBrush="{StaticResource EL.Brush.PanelBorder}"
+                                Background="#16FFFFFF">
+                            <StackPanel>
+                                <TextBlock Text="Analysis engine"
+                                           Style="{StaticResource EL.Text.Caption}"
+                                           Foreground="{StaticResource EL.Brush.TextMuted}" />
+
+                                <TextBlock Text="Choose how EternalLoop analyzes rhythm and jump timing."
+                                           Style="{StaticResource EL.Text.Body}"
+                                           Foreground="{StaticResource EL.Brush.TextMuted}"
+                                           TextWrapping="Wrap"
+                                           Margin="0 6 0 10" />
+
+                                <UniformGrid Columns="2" Margin="0 2 0 10">
+                                    <RadioButton GroupName="AnalysisEngineModeGroup"
+                                                 IsChecked="{Binding IsEnhancedAnalysisSelected, Mode=TwoWay}"
+                                                 Style="{StaticResource EL.RadioCard.Preset}"
+                                                 Margin="0 0 8 0">
+                                        <StackPanel>
+                                            <TextBlock Text="Enhanced"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="White" />
+                                            <TextBlock Text="Local AI timing"
+                                                       FontSize="11"
+                                                       Foreground="{StaticResource EL.Brush.TextMuted}" />
+                                        </StackPanel>
+                                    </RadioButton>
+
+                                    <RadioButton GroupName="AnalysisEngineModeGroup"
+                                                 IsChecked="{Binding IsClassicAnalysisSelected, Mode=TwoWay}"
+                                                 Style="{StaticResource EL.RadioCard.Preset}"
+                                                 Margin="8 0 0 0">
+                                        <StackPanel>
+                                            <TextBlock Text="Classic"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="White" />
+                                            <TextBlock Text="Original timing"
+                                                       FontSize="11"
+                                                       Foreground="{StaticResource EL.Brush.TextMuted}" />
+                                        </StackPanel>
+                                    </RadioButton>
+                                </UniformGrid>
+
+                                <TextBlock Text="{Binding AnalysisBeatModeDescription}"
+                                           Style="{StaticResource EL.Text.Caption}"
+                                           Foreground="{StaticResource EL.Brush.TextMuted}"
+                                           TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+
                         <WrapPanel Margin="0 14 0 0">
                             <Border Width="280" CornerRadius="18" Padding="14" Margin="0 0 12 12"
                                     BorderBrush="{StaticResource EL.Brush.PanelBorder}"

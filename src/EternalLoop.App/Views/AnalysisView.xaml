@@ -12,7 +12,7 @@
                                  VerticalAlignment="Center"
                                  Padding="44">
                 <StackPanel HorizontalAlignment="Stretch">
-                    <Grid x:Name="InfinitePulseGlyph"
+                    <Grid x:Name="LoopPulseGlyph"
                           Width="128"
                           Height="128"
                           HorizontalAlignment="Center"
@@ -25,17 +25,17 @@
                             <EventTrigger RoutedEvent="FrameworkElement.Loaded">
                                 <BeginStoryboard>
                                     <Storyboard RepeatBehavior="Forever" AutoReverse="True">
-                                        <DoubleAnimation Storyboard.TargetName="InfinitePulseGlyph"
+                                        <DoubleAnimation Storyboard.TargetName="LoopPulseGlyph"
                                                          Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
                                                          From="1"
                                                          To="1.065"
                                                          Duration="0:0:0.85" />
-                                        <DoubleAnimation Storyboard.TargetName="InfinitePulseGlyph"
+                                        <DoubleAnimation Storyboard.TargetName="LoopPulseGlyph"
                                                          Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
                                                          From="1"
                                                          To="1.065"
                                                          Duration="0:0:0.85" />
-                                        <DoubleAnimation Storyboard.TargetName="InfinitePulseGlyph"
+                                        <DoubleAnimation Storyboard.TargetName="LoopPulseGlyph"
                                                          Storyboard.TargetProperty="Opacity"
                                                          From="0.92"
                                                          To="1"
@@ -55,7 +55,7 @@
                                    Margin="0 -5 0 0" />
                     </Grid>
 
-                    <TextBlock Text="Preparing your infinite loop"
+                    <TextBlock Text="Preparing your loop map"
                                Style="{StaticResource EL.Text.Display.Neon}"
                                FontSize="34"
                                TextAlignment="Center" />

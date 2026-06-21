@@ -1,3 +1,7 @@
+using EternalLoop.AnalysisEngine.Core.BeatTracking.Ai;
+using EternalLoop.AnalysisEngine.Core.BeatTracking.Candidates;
+using EternalLoop.AnalysisEngine.Core.BeatTracking.Shadow;
+
 namespace EternalLoop.AnalysisEngine.Core.Analysis;
 
 public sealed class AnalysisDiagnostics
@@ -11,6 +15,8 @@ public sealed class AnalysisDiagnostics
     public bool RequestedStructuralSections { get; init; }
 
     public bool RequestedEvidenceConfidences { get; init; }
+
+    public string RequestedTatumMode { get; init; } = "Default";
 
     public string SegmentationMode { get; init; } = "temporal-fallback";
 
@@ -33,6 +39,54 @@ public sealed class AnalysisDiagnostics
     public double SelectedTempo { get; init; }
 
     public double? ForcedTempoBpm { get; init; }
+
+    public string BeatProviderName { get; init; } = "built-in";
+
+    public string BeatProviderVersion { get; init; } = "analysisengine-built-in";
+
+    public string BeatProviderLicense { get; init; } = "MIT";
+
+    public string BeatProviderModelName { get; init; } = "none";
+
+    public string BeatProviderModelSha256 { get; init; } = "none";
+
+    public bool BeatProviderUsedAi { get; init; }
+
+    public bool BeatProviderUsedBuiltIn { get; init; } = true;
+
+    public bool BeatProviderUsedFallback { get; init; }
+
+    public bool BeatProviderUsedHybrid { get; init; }
+
+    public string? BeatProviderFallbackReason { get; init; }
+
+    public IReadOnlyList<string> BeatProviderWarnings { get; init; } = [];
+
+    public bool BeatProviderDownbeatSanitized { get; init; }
+
+    public int BeatProviderDownbeatCount { get; init; }
+
+    public int BeatProviderBeatNumberCount { get; init; }
+
+    public int? BeatProviderEstimatedMeter { get; init; }
+
+    public string BeatProviderOutputMode { get; init; } = "none";
+
+    public int BeatProviderChunkCount { get; init; }
+
+    public int BeatProviderValidFrameCount { get; init; }
+
+    public double BeatProviderCoverageSeconds { get; init; }
+
+    public double BeatProviderCoverageRatio { get; init; }
+
+    public BeatThisActivationSummary? BeatProviderBeatActivationSummary { get; init; }
+
+    public BeatThisActivationSummary? BeatProviderDownbeatActivationSummary { get; init; }
+
+    public BeatGridShadowDiagnostics? BeatProviderShadowDiagnostics { get; init; }
+
+    public BeatGridCandidateSet? BeatProviderCandidateSet { get; init; }
 
     public IReadOnlyList<BeatTracking.TempoCandidate> TempoCandidates { get; init; } = [];
 

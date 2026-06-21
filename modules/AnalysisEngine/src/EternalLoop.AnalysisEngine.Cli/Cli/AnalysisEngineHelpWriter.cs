@@ -19,6 +19,9 @@ public static class AnalysisEngineHelpWriter
           --title <title>         Track title used in exported metadata
           --artist <artist>       Artist name used in exported metadata
           --format <format>       raw, loop, or both
+          --beat-provider <mode>  auto, built-in, beat-this, shadow, or hybrid
+          --ai-fallback <mode>    fallback-to-built-in or fail
+          --tatum-mode <mode>     default, adaptive, or fixed-two-per-beat
           --pretty                Writes indented JSON, enabled by default
           --force                 Overwrites existing output files
           --quiet                 Reduces progress output
@@ -32,6 +35,9 @@ public static class AnalysisEngineHelpWriter
 
         Defaults:
           --format both
+          --beat-provider auto
+          --ai-fallback fallback-to-built-in
+          --tatum-mode default
           --pretty true
           --track-id normalized input file name
           --title input file name without extension

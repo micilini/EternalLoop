@@ -20,4 +20,13 @@ public sealed class CliHelpTests
 
         help.Should().Contain("--output-dir <path>");
     }
+
+    [Fact]
+    public void Help_contains_beat_provider_flags()
+    {
+        var help = AnalysisEngineHelpWriter.GetHelpText();
+
+        help.Should().Contain("--beat-provider <mode>");
+        help.Should().Contain("--ai-fallback <mode>");
+    }
 }

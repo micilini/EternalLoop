@@ -40,6 +40,12 @@ public sealed class BeatTrackingOptions
 
     public const double DefaultHarmonicOnsetWeight = 0.0;
 
+    public BeatTrackingProviderKind BeatProvider { get; init; } = BeatTrackingProviderKind.Auto;
+
+    public AiFallbackMode AiFallbackMode { get; init; } = AiFallbackMode.FallbackToBuiltIn;
+
+    public HybridCalibrationProfile HybridCalibrationProfile { get; init; } = HybridCalibrationProfile.StrictProduction;
+
     public double MinBpm { get; init; } = DefaultMinBpm;
 
     public double MaxBpm { get; init; } = DefaultMaxBpm;

@@ -32,6 +32,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     private double _jumpProbability;
     private int _jumpCooldown;
     private double _firstPassLinearPlaybackRatio;
+    private string _selectedAnalysisBeatModeId = AnalysisBeatModeCatalog.EnhancedId;
     private bool _isTuningBusy;
     private bool _isTuningDirty;
     private string _tuningStatusText = "Tuning changes are saved automatically.";
@@ -189,6 +190,59 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         }
     }
 
+    public IReadOnlyList<AnalysisBeatModeDefinition> AnalysisBeatModeOptions { get; } =
+        AnalysisBeatModeCatalog.All;
+
+    public string SelectedAnalysisBeatModeId
+    {
+        get => _selectedAnalysisBeatModeId;
+        set
+        {
+            string normalized = AnalysisBeatModeCatalog.GetById(value).Id;
+
+            if (SetProperty(ref _selectedAnalysisBeatModeId, normalized))
+            {
+                OnPropertyChanged(nameof(AnalysisBeatModeDescription));
+                OnPropertyChanged(nameof(IsEnhancedAnalysisSelected));
+                OnPropertyChanged(nameof(IsClassicAnalysisSelected));
+                MarkTuningDirty();
+            }
+        }
+    }
+
+    public string AnalysisBeatModeDescription =>
+        AnalysisBeatModeCatalog.GetById(SelectedAnalysisBeatModeId).Description;
+
+    public bool IsEnhancedAnalysisSelected
+    {
+        get => string.Equals(
+            SelectedAnalysisBeatModeId,
+            AnalysisBeatModeCatalog.EnhancedId,
+            StringComparison.Ordinal);
+        set
+        {
+            if (value)
+            {
+                SelectedAnalysisBeatModeId = AnalysisBeatModeCatalog.EnhancedId;
+            }
+        }
+    }
+
+    public bool IsClassicAnalysisSelected
+    {
+        get => string.Equals(
+            SelectedAnalysisBeatModeId,
+            AnalysisBeatModeCatalog.ClassicId,
+            StringComparison.Ordinal);
+        set
+        {
+            if (value)
+            {
+                SelectedAnalysisBeatModeId = AnalysisBeatModeCatalog.ClassicId;
+            }
+        }
+    }
+
     public bool IsTuningBusy
     {
         get => _isTuningBusy;
@@ -287,6 +341,9 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
             _jumpProbability = settings.JumpProbability;
             _jumpCooldown = settings.JumpCooldown;
             _firstPassLinearPlaybackRatio = settings.FirstPassLinearPlaybackRatio;
+            _selectedAnalysisBeatModeId = AnalysisBeatModeCatalog
+                .GetById(settings.AnalysisBeatProvider)
+                .Id;
 
             OnPropertyChanged(nameof(SimilarityThreshold));
             OnPropertyChanged(nameof(LookaheadDepth));
@@ -295,6 +352,10 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(JumpProbability));
             OnPropertyChanged(nameof(JumpCooldown));
             OnPropertyChanged(nameof(FirstPassLinearPlaybackRatio));
+            OnPropertyChanged(nameof(SelectedAnalysisBeatModeId));
+            OnPropertyChanged(nameof(AnalysisBeatModeDescription));
+            OnPropertyChanged(nameof(IsEnhancedAnalysisSelected));
+            OnPropertyChanged(nameof(IsClassicAnalysisSelected));
         }
         finally
         {
@@ -459,6 +520,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         _userSettings.Tuning.JumpProbability = JumpProbability;
         _userSettings.Tuning.JumpCooldown = JumpCooldown;
         _userSettings.Tuning.FirstPassLinearPlaybackRatio = FirstPassLinearPlaybackRatio;
+        _userSettings.Tuning.AnalysisBeatProvider = SelectedAnalysisBeatModeId;
         _userSettings.Tuning.BranchQuantumType = "beats";
         _userSettings.Tuning.BranchMaxThreshold = LoopTuningPresetCatalog
             .GetById(SelectedPresetId)

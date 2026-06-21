@@ -33,7 +33,7 @@ public sealed class RepositoryHygieneTests
     {
         string content = ReadRepositoryFile("README.md");
 
-        content.Should().Contain("EternalLoop 1.2.0");
+        content.Should().Contain("EternalLoop 1.3.0");
         content.Should().Contain("local-first");
         content.Should().Contain("MP3");
         content.Should().Contain("WAV");

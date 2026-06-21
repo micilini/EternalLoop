@@ -1,6 +1,7 @@
 using EternalLoop.AnalysisEngine.Core.Analysis;
 using EternalLoop.AnalysisEngine.Core.Audio;
 using EternalLoop.AnalysisEngine.Core.BeatTracking;
+using EternalLoop.AnalysisEngine.Core.BeatTracking.Ai;
 using EternalLoop.AnalysisEngine.Core.Features;
 using EternalLoop.AnalysisEngine.Core.Options;
 using EternalLoop.AnalysisEngine.Core.Validation;
@@ -15,10 +16,17 @@ public static class AnalysisEngineServiceFactory
         AudioLoaderOptions? audioLoaderOptions = null,
         ILoggerFactory? loggerFactory = null)
     {
+        var builtInBeatTracker = new SpectralFluxBeatTracker();
+        var beatThisBeatTracker = new BeatThisOnnxBeatTracker();
+        var beatTrackerSelector = new BeatTrackerSelector(
+            builtInBeatTracker,
+            beatThisBeatTracker,
+            new BeatGridGuardrails());
+
         var pipeline = new TrackAnalysisPipeline(
             new NAudioAnalysisAudioLoader(audioLoaderOptions),
             new NWavesAnalysisFeatureExtractor(),
-            new SpectralFluxBeatTracker(),
+            beatTrackerSelector,
             new AnalysisSanityValidator(),
             loggerFactory?.CreateLogger<TrackAnalysisPipeline>() ?? NullLogger<TrackAnalysisPipeline>.Instance);
 

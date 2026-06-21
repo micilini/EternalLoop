@@ -68,6 +68,9 @@ public sealed class TrackAnalysisPipeline : ITrackAnalysisPipeline
         progressReporter.Report(AnalysisStage.TrackingBeats, 0.0, "Tracking beats");
         var beatTrackingResult = _beatTracker.Track(audio, features, new BeatTrackingOptions
         {
+            BeatProvider = options.BeatProvider,
+            AiFallbackMode = options.AiFallbackMode,
+            HybridCalibrationProfile = options.HybridCalibrationProfile,
             BeatMicroSnap = options.MusicalQuality.BeatMicroSnap,
             EvidenceConfidences = options.MusicalQuality.EvidenceConfidences,
             MinBpm = options.Tuning.MinTempo ?? BeatTrackingOptions.DefaultMinBpm,
@@ -150,16 +153,37 @@ public sealed class TrackAnalysisPipeline : ITrackAnalysisPipeline
             : features.SpectralFlux;
         var odf = OnsetDetectionFunction.Build(onsetSource, BeatTrackingOptions.DefaultOdfSmoothWindow);
         var framesPerSecond = audio.SampleRate / (double)features.HopLengthSamples;
-        var barPhase = options.MusicalQuality.BeatMicroSnap
-            ? BarPhaseSelector.Select(beats, odf, framesPerSecond, options.TimeSignature)
-            : new BarPhaseSelectionResult(0, [new BarPhaseCandidate(0, 1.0, 1.0, 1.0, 1.0, 1.0)], "phase-zero");
-        var bars = TimeQuantumBuilder.BuildBars(beats, options.TimeSignature, barPhase.SelectedPhase);
-        var tatums = TimeQuantumBuilder.BuildTatums(
+        var providerBars = BarBuilderFromDownbeats.Build(
             beats,
-            odf,
-            framesPerSecond,
+            beatTrackingResult.DownbeatTimes,
+            options.TimeSignature);
+        BarPhaseSelectionResult barPhase;
+        IReadOnlyList<Bar> bars;
+
+        if (providerBars.UsedProviderDownbeats)
+        {
+            barPhase = providerBars.BarPhaseSelection;
+            bars = providerBars.Bars;
+        }
+        else
+        {
+            barPhase = options.MusicalQuality.BeatMicroSnap
+                ? BarPhaseSelector.Select(beats, odf, framesPerSecond, options.TimeSignature)
+                : new BarPhaseSelectionResult(0, [new BarPhaseCandidate(0, 1.0, 1.0, 1.0, 1.0, 1.0)], "phase-zero");
+            bars = TimeQuantumBuilder.BuildBars(beats, options.TimeSignature, barPhase.SelectedPhase);
+        }
+        var effectiveTatumMode = ResolveEffectiveTatumMode(
+            options.MusicalQuality.TatumMode,
             options.MusicalQuality.AdaptiveTatums,
-            options.MusicalQuality.EvidenceConfidences);
+            beatTrackingResult);
+        var tatums = effectiveTatumMode == TatumMode.FixedTwoPerBeat
+            ? TimeQuantumBuilder.BuildFixedTwoPerBeatTatums(beats)
+            : TimeQuantumBuilder.BuildTatums(
+                beats,
+                odf,
+                framesPerSecond,
+                effectiveTatumMode == TatumMode.Adaptive,
+                options.MusicalQuality.EvidenceConfidences);
         var sections = TimeQuantumBuilder.BuildSections(
             audio,
             bars,
@@ -183,9 +207,10 @@ public sealed class TrackAnalysisPipeline : ITrackAnalysisPipeline
             RequestedAdaptiveTatums = options.MusicalQuality.AdaptiveTatums,
             RequestedStructuralSections = options.MusicalQuality.StructuralSections,
             RequestedEvidenceConfidences = options.MusicalQuality.EvidenceConfidences,
+            RequestedTatumMode = options.MusicalQuality.TatumMode.ToString(),
             SegmentationMode = segmentResult.Mode,
             BeatGridMode = beatTrackingResult.BeatGridMode,
-            TatumMode = ResolveTatumMode(tatums, beats, options.MusicalQuality.AdaptiveTatums),
+            TatumMode = ResolveTatumMode(effectiveTatumMode, tatums, beats),
             SectionMode = ResolveSectionMode(audio, sections, options.MusicalQuality.StructuralSections),
             NoveltyBoundaryRatio = segmentResult.NoveltyBoundaryRatio,
             BeatStdDevRatio = CalculateStdDevRatio(beats.Select(beat => beat.Duration)),
@@ -194,6 +219,30 @@ public sealed class TrackAnalysisPipeline : ITrackAnalysisPipeline
             SectionConfidenceVariance = CalculateVariance(sections.Select(section => section.Confidence)),
             SelectedTempo = beatTrackingResult.EstimatedBpm,
             ForcedTempoBpm = beatTrackingResult.ForcedTempoBpm,
+            BeatProviderName = beatTrackingResult.ProviderName,
+            BeatProviderVersion = beatTrackingResult.ProviderVersion,
+            BeatProviderLicense = beatTrackingResult.ProviderLicense,
+            BeatProviderModelName = beatTrackingResult.ModelName,
+            BeatProviderModelSha256 = beatTrackingResult.ModelSha256,
+            BeatProviderUsedAi = beatTrackingResult.UsedAiProvider,
+            BeatProviderUsedBuiltIn = beatTrackingResult.UsedBuiltInProvider,
+            BeatProviderUsedFallback = beatTrackingResult.UsedFallbackProvider,
+            BeatProviderUsedHybrid = beatTrackingResult.UsedHybridProvider,
+            BeatProviderFallbackReason = beatTrackingResult.FallbackReason,
+            BeatProviderWarnings = beatTrackingResult.ProviderWarnings,
+            BeatProviderDownbeatSanitized = beatTrackingResult.DownbeatSanitized,
+            BeatProviderDownbeatCount = beatTrackingResult.DownbeatTimes.Length,
+            BeatProviderBeatNumberCount = beatTrackingResult.BeatNumbers.Length,
+            BeatProviderEstimatedMeter = beatTrackingResult.EstimatedMeter,
+            BeatProviderOutputMode = beatTrackingResult.BeatProviderOutputMode,
+            BeatProviderChunkCount = beatTrackingResult.BeatProviderChunkCount,
+            BeatProviderValidFrameCount = beatTrackingResult.BeatProviderValidFrameCount,
+            BeatProviderCoverageSeconds = beatTrackingResult.BeatProviderCoverageSeconds,
+            BeatProviderCoverageRatio = beatTrackingResult.BeatProviderCoverageRatio,
+            BeatProviderBeatActivationSummary = beatTrackingResult.BeatActivationSummary,
+            BeatProviderDownbeatActivationSummary = beatTrackingResult.DownbeatActivationSummary,
+            BeatProviderShadowDiagnostics = beatTrackingResult.ShadowDiagnostics,
+            BeatProviderCandidateSet = beatTrackingResult.CandidateSet,
             TempoCandidates = beatTrackingResult.TempoCandidates,
             BarPhaseMode = barPhase.Mode,
             SelectedBarPhase = barPhase.SelectedPhase,
@@ -276,6 +325,7 @@ public sealed class TrackAnalysisPipeline : ITrackAnalysisPipeline
             Sections = sections,
             MicroFingerprints = [],
             Ai = null,
+            BeatProvider = BeatProviderExportDiagnostics.FromDiagnostics(diagnostics),
             Diagnostics = diagnostics
         };
     }
@@ -309,17 +359,45 @@ public sealed class TrackAnalysisPipeline : ITrackAnalysisPipeline
         return durations > 2 ? "novelty-boundary" : "block-fallback";
     }
 
-    private static string ResolveTatumMode(
-        IReadOnlyList<Models.Tatum> tatums,
-        IReadOnlyList<Models.Beat> beats,
-        bool adaptiveTatums)
+    private static TatumMode ResolveEffectiveTatumMode(
+        TatumMode requestedMode,
+        bool adaptiveTatums,
+        BeatTrackingResult beatTrackingResult)
     {
-        if (!adaptiveTatums)
+        if (requestedMode == TatumMode.FixedTwoPerBeat)
         {
-            return "uniform-fallback";
+            return TatumMode.FixedTwoPerBeat;
         }
 
-        if (tatums.Count != beats.Count * 2 || CalculateVariance(tatums.Select(tatum => tatum.Confidence)) > 0.000001)
+        if (requestedMode == TatumMode.Adaptive)
+        {
+            return TatumMode.Adaptive;
+        }
+
+        var aiProviderSucceeded = beatTrackingResult.UsedAiProvider
+            && !beatTrackingResult.UsedFallbackProvider;
+
+        if (aiProviderSucceeded)
+        {
+            return TatumMode.FixedTwoPerBeat;
+        }
+
+        return adaptiveTatums ? TatumMode.Adaptive : TatumMode.Default;
+    }
+
+    private static string ResolveTatumMode(
+        TatumMode effectiveTatumMode,
+        IReadOnlyList<Models.Tatum> tatums,
+        IReadOnlyList<Models.Beat> beats)
+    {
+        if (effectiveTatumMode == TatumMode.FixedTwoPerBeat)
+        {
+            return "fixed-two-per-beat";
+        }
+
+        if (effectiveTatumMode == TatumMode.Adaptive
+            && (tatums.Count != beats.Count * 2
+                || CalculateVariance(tatums.Select(tatum => tatum.Confidence)) > 0.000001))
         {
             return "onset-subdivision";
         }

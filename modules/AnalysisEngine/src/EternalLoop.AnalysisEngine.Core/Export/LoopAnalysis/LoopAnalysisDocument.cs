@@ -12,4 +12,7 @@ public sealed class LoopAnalysisDocument
 
     [JsonPropertyName("audio_summary")]
     public required LoopAnalysisAudioSummaryDocument AudioSummary { get; init; }
+
+    [JsonPropertyName("beat_provider")]
+    public required LoopAnalysisBeatProviderDocument BeatProvider { get; init; }
 }

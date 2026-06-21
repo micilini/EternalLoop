@@ -102,6 +102,13 @@ public static class TimeQuantumBuilder
         return tatums;
     }
 
+    public static IReadOnlyList<Tatum> BuildFixedTwoPerBeatTatums(IReadOnlyList<Beat> beats)
+    {
+        ArgumentNullException.ThrowIfNull(beats);
+
+        return BuildTatums(beats);
+    }
+
     public static IReadOnlyList<Tatum> BuildTatums(
         IReadOnlyList<Beat> beats,
         float[] onsetDetectionFunction,

@@ -262,38 +262,29 @@ public sealed class TrackArtworkServiceTests
         });
     }
 
-    // Helper methods for M4A tests
 
     private static byte[] CreateM4aFile()
     {
-        return new byte[] { 0x00, 0x00, 0x00, 0x08, (byte)'f', (byte)'t', (byte)'y', (byte)'p' }; // Minimal file
+        return new byte[] { 0x00, 0x00, 0x00, 0x08, (byte)'f', (byte)'t', (byte)'y', (byte)'p' };
     }
 
     private static byte[] CreateM4aFileWithCovr(byte[] imageBytes, int dataType)
     {
-        // 1. Create data atom
         byte[] dataPayload = new byte[8 + imageBytes.Length];
         WriteBigEndian(dataType, dataPayload.AsSpan(0, 4));
-        // dataPayload[4..8] is 0 (locale/reserved)
         Buffer.BlockCopy(imageBytes, 0, dataPayload, 8, imageBytes.Length);
         byte[] dataAtom = CreateAtom("data", dataPayload);
 
-        // 2. Create covr atom
         byte[] covrAtom = CreateAtom("covr", dataAtom);
 
-        // 3. Create ilst atom
         byte[] ilstAtom = CreateAtom("ilst", covrAtom);
 
-        // 4. Create meta atom
         byte[] metaPayload = new byte[4 + ilstAtom.Length];
-        // metaPayload[0..4] is 0 (version/flags)
         Buffer.BlockCopy(ilstAtom, 0, metaPayload, 4, ilstAtom.Length);
         byte[] metaAtom = CreateAtom("meta", metaPayload);
 
-        // 5. Create udta atom
         byte[] udtaAtom = CreateAtom("udta", metaAtom);
 
-        // 6. Create moov atom
         byte[] moovAtom = CreateAtom("moov", udtaAtom);
 
         return moovAtom;

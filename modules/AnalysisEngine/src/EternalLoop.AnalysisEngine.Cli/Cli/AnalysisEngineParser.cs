@@ -10,6 +10,10 @@ public static class AnalysisEngineParser
     private const string TitleFlag = "--title";
     private const string ArtistFlag = "--artist";
     private const string FormatFlag = "--format";
+    private const string BeatProviderFlag = "--beat-provider";
+    private const string AiFallbackFlag = "--ai-fallback";
+    private const string HybridCalibrationProfileFlag = "--hybrid-calibration-profile";
+    private const string TatumModeFlag = "--tatum-mode";
     private const string PrettyFlag = "--pretty";
     private const string ForceFlag = "--force";
     private const string QuietFlag = "--quiet";
@@ -107,6 +111,35 @@ public static class AnalysisEngineParser
             return AnalysisEngineParseResult.Error("Invalid format. Expected raw, loop, or both.");
         }
 
+        var beatProviderResult = ParseBeatProvider(values.GetValueOrDefault(BeatProviderFlag, "auto"));
+
+        if (beatProviderResult is null)
+        {
+            return AnalysisEngineParseResult.Error("Invalid beat provider. Expected auto, built-in, beat-this, shadow, or hybrid.");
+        }
+
+        var aiFallbackResult = ParseAiFallbackMode(values.GetValueOrDefault(AiFallbackFlag, "fallback-to-built-in"));
+
+        if (aiFallbackResult is null)
+        {
+            return AnalysisEngineParseResult.Error("Invalid AI fallback mode. Expected fallback-to-built-in or fail.");
+        }
+
+        var hybridCalibrationProfileResult = ParseHybridCalibrationProfile(
+            values.GetValueOrDefault(HybridCalibrationProfileFlag, "strict-production"));
+
+        if (hybridCalibrationProfileResult is null)
+        {
+            return AnalysisEngineParseResult.Error("Invalid hybrid calibration profile. Expected strict-production, balanced-probe, or exploratory-probe.");
+        }
+
+        var tatumModeResult = ParseTatumMode(values.GetValueOrDefault(TatumModeFlag, "default"));
+
+        if (tatumModeResult is null)
+        {
+            return AnalysisEngineParseResult.Error("Invalid tatum mode. Expected default, adaptive, or fixed-two-per-beat.");
+        }
+
         var arguments = new AnalysisEngineArguments
         {
             InputPath = inputPath,
@@ -118,6 +151,10 @@ public static class AnalysisEngineParser
             Pretty = true,
             Force = flags.Contains(ForceFlag),
             Quiet = flags.Contains(QuietFlag),
+            BeatProvider = beatProviderResult.Value,
+            AiFallbackMode = aiFallbackResult.Value,
+            HybridCalibrationProfile = hybridCalibrationProfileResult.Value,
+            TatumMode = tatumModeResult.Value,
             MusicalQuality = flags.Contains(MusicalQualityFlag),
             MusicalQualitySegmentation = flags.Contains(MusicalQualityFlag) || flags.Contains(MusicalQualitySegmentationFlag),
             MusicalQualityBeatMicroSnap = flags.Contains(MusicalQualityFlag) || flags.Contains(MusicalQualityBeatMicroSnapFlag),
@@ -149,6 +186,10 @@ public static class AnalysisEngineParser
             || string.Equals(name, TrackIdFlag, StringComparison.OrdinalIgnoreCase)
             || string.Equals(name, TitleFlag, StringComparison.OrdinalIgnoreCase)
             || string.Equals(name, ArtistFlag, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, BeatProviderFlag, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, AiFallbackFlag, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, HybridCalibrationProfileFlag, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, TatumModeFlag, StringComparison.OrdinalIgnoreCase)
             || string.Equals(name, FormatFlag, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -159,6 +200,51 @@ public static class AnalysisEngineParser
             "raw" => AnalysisEngineFormat.Raw,
             "loop" => AnalysisEngineFormat.Loop,
             "both" => AnalysisEngineFormat.Both,
+            _ => null
+        };
+    }
+
+    private static BeatTrackingProviderKind? ParseBeatProvider(string value)
+    {
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "auto" => BeatTrackingProviderKind.Auto,
+            "built-in" or "builtin" or "built_in" => BeatTrackingProviderKind.BuiltIn,
+            "beat-this" or "beatthis" or "beat_this" => BeatTrackingProviderKind.BeatThis,
+            "shadow" or "shadow-mode" or "beat-this-shadow" or "built-in-shadow" or "legacy-shadow" => BeatTrackingProviderKind.Shadow,
+            "hybrid" or "hybrid-experimental" or "weak-window-hybrid" => BeatTrackingProviderKind.Hybrid,
+            _ => null
+        };
+    }
+
+    private static AiFallbackMode? ParseAiFallbackMode(string value)
+    {
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "fallback-to-built-in" or "fallback" or "fallback-to-builtin" => AiFallbackMode.FallbackToBuiltIn,
+            "fail" => AiFallbackMode.Fail,
+            _ => null
+        };
+    }
+
+    private static HybridCalibrationProfile? ParseHybridCalibrationProfile(string value)
+    {
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "strict" or "strict-production" or "production" => HybridCalibrationProfile.StrictProduction,
+            "balanced" or "balanced-probe" or "probe" => HybridCalibrationProfile.BalancedProbe,
+            "exploratory" or "exploratory-probe" or "aggressive" => HybridCalibrationProfile.ExploratoryProbe,
+            _ => null
+        };
+    }
+
+    private static TatumMode? ParseTatumMode(string value)
+    {
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "default" => TatumMode.Default,
+            "adaptive" => TatumMode.Adaptive,
+            "fixed" or "fixed-two-per-beat" or "fixed_two_per_beat" or "two-per-beat" or "twoperbeat" => TatumMode.FixedTwoPerBeat,
             _ => null
         };
     }

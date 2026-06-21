@@ -49,7 +49,8 @@ public static class LoopAnalysisMapper
             AudioSummary = new LoopAnalysisAudioSummaryDocument
             {
                 Duration = analysis.Metadata.DurationSeconds
-            }
+            },
+            BeatProvider = LoopAnalysisBeatProviderDocument.From(analysis.BeatProvider)
         };
     }
 

@@ -23,6 +23,9 @@ public sealed class TrackAnalysis
 
     public object? Ai { get; init; }
 
+    [JsonPropertyName("beat_provider")]
+    public BeatProviderExportDiagnostics BeatProvider { get; init; } = BeatProviderExportDiagnostics.BuiltIn();
+
     [JsonIgnore]
     public AnalysisDiagnostics? Diagnostics { get; init; }
 }

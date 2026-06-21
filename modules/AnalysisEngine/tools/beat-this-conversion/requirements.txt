@@ -1,0 +1,14 @@
+# Python tooling only. These packages must never become runtime dependencies of the C# app.
+# Recommended Python: 3.11
+
+beat-this==1.1.0
+numpy>=1.26,<3
+torch>=2.0
+torchaudio>=2.0
+onnx>=1.16,<2
+onnxruntime>=1.18,<2
+tqdm>=4.66
+einops>=0.7
+soxr>=0.3
+rotary-embedding-torch>=0.6
+onnxscript>=0.4

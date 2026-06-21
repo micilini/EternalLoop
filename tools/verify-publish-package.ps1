@@ -6,12 +6,18 @@ $appProjectPath = Join-Path $repoRoot 'src\EternalLoop.App\EternalLoop.App.cspro
 $publishScriptPath = Join-Path $repoRoot 'tools\publish-release-win-x64.ps1'
 $readmePath = Join-Path $repoRoot 'README.md'
 $gitignorePath = Join-Path $repoRoot '.gitignore'
-$publishDirectory = Join-Path $repoRoot 'artifacts\publish\EternalLoop-1.2.0-win-x64'
+$publishDirectory = Join-Path $repoRoot 'artifacts\publish\EternalLoop-1.3.0-win-x64'
 $exePath = Join-Path $publishDirectory 'EternalLoop.App.exe'
 
 function Assert-FileExists([string] $path) {
     if (-not (Test-Path -LiteralPath $path)) {
         throw "Missing file: $path"
+    }
+}
+
+function Assert-FileDoesNotExist([string] $path) {
+    if (Test-Path -LiteralPath $path) {
+        throw "Unexpected file in package: $path"
     }
 }
 
@@ -39,7 +45,7 @@ Assert-Contains $profilePath '<RuntimeIdentifier>win-x64</RuntimeIdentifier>'
 Assert-Contains $profilePath '<SelfContained>true</SelfContained>'
 Assert-Contains $profilePath '<PublishSingleFile>true</PublishSingleFile>'
 Assert-Contains $profilePath '<PublishTrimmed>false</PublishTrimmed>'
-Assert-Contains $profilePath 'artifacts\publish\EternalLoop-1.2.0-win-x64'
+Assert-Contains $profilePath 'artifacts\publish\EternalLoop-1.3.0-win-x64'
 Assert-NotContains $profilePath 'C:\Users'
 Assert-NotContains $profilePath 'sdanz'
 Assert-NotContains $profilePath 'Desktop'
@@ -48,8 +54,8 @@ Assert-NotContains $profilePath 'EternalLoop-v1.0.0'
 
 Assert-Contains $appProjectPath '<TargetFramework>net8.0-windows</TargetFramework>'
 Assert-Contains $appProjectPath '<UseWPF>true</UseWPF>'
-Assert-Contains $appProjectPath '<Version>1.2.0</Version>'
-Assert-Contains $appProjectPath '<FileVersion>1.2.0.0</FileVersion>'
+Assert-Contains $appProjectPath '<Version>1.3.0</Version>'
+Assert-Contains $appProjectPath '<FileVersion>1.3.0.0</FileVersion>'
 Assert-Contains $appProjectPath '<RuntimeIdentifiers>win-x64</RuntimeIdentifiers>'
 
 Assert-Contains $publishScriptPath 'dotnet publish .\src\EternalLoop.App\EternalLoop.App.csproj -c Release -p:PublishProfile=win-x64-self-contained'
@@ -87,13 +93,59 @@ Assert-FileExists $exePath
 
 if ($IsWindows -or $env:OS -eq 'Windows_NT') {
     $versionInfo = (Get-Item -LiteralPath $exePath).VersionInfo
-    if ($versionInfo.FileVersion -ne '1.2.0.0') {
+    if ($versionInfo.FileVersion -ne '1.3.0.0') {
         throw "Unexpected FileVersion: $($versionInfo.FileVersion)"
     }
 
-    if (-not $versionInfo.ProductVersion.StartsWith('1.2.0', [StringComparison]::OrdinalIgnoreCase)) {
+    if (-not $versionInfo.ProductVersion.StartsWith('1.3.0', [StringComparison]::OrdinalIgnoreCase)) {
         throw "Unexpected ProductVersion: $($versionInfo.ProductVersion)"
     }
+}
+
+$modelDirectory = Join-Path $publishDirectory 'assets\models\beat-this'
+$modelPath = Join-Path $modelDirectory 'beat-this-large.onnx'
+$modelJsonPath = Join-Path $modelDirectory 'model.json'
+$noticePath = Join-Path $modelDirectory 'THIRD_PARTY_NOTICES.md'
+$licensePath = Join-Path $modelDirectory 'BEAT_THIS_LICENSE.txt'
+
+Assert-FileExists $modelPath
+Assert-FileExists $modelJsonPath
+Assert-FileExists $noticePath
+Assert-FileExists $licensePath
+
+Assert-FileDoesNotExist (Join-Path $modelDirectory '.gitignore')
+Assert-FileDoesNotExist (Join-Path $modelDirectory '.gitkeep')
+Assert-FileDoesNotExist (Join-Path $modelDirectory 'model.json.example')
+Assert-FileDoesNotExist (Join-Path $modelDirectory 'readme.md')
+Assert-FileDoesNotExist (Join-Path $modelDirectory 'beat-this-large.verification.json')
+
+Assert-NotContains $noticePath 'REPLACE_WITH'
+Assert-NotContains $noticePath 'Do not ship'
+Assert-NotContains $noticePath 'template only'
+Assert-NotContains $noticePath 'yes/no'
+Assert-Contains $noticePath 'CPJKU/beat_this'
+Assert-Contains $noticePath 'MIT'
+Assert-Contains $licensePath 'MIT License'
+
+$modelJson = Get-Content -LiteralPath $modelJsonPath -Raw | ConvertFrom-Json
+if ($modelJson.license -ne 'MIT') {
+    throw 'Expected model.json license MIT.'
+}
+
+if ($modelJson.model_file -ne 'beat-this-large.onnx') {
+    throw 'Expected model_file beat-this-large.onnx.'
+}
+
+$expectedSha = $modelJson.model_sha256
+$actualSha = (Get-FileHash -LiteralPath $modelPath -Algorithm SHA256).Hash.ToLowerInvariant()
+
+if ($actualSha -ne $expectedSha) {
+    throw "Published model SHA256 mismatch. Expected $expectedSha but found $actualSha."
+}
+
+$modelSize = (Get-Item -LiteralPath $modelPath).Length
+if ($modelSize -lt 80000000) {
+    throw "Published ONNX model is unexpectedly small: $modelSize bytes."
 }
 
 Write-Host 'OK: publish package verification passed.'

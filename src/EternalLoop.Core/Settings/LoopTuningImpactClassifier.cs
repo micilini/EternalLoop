@@ -9,7 +9,8 @@ public static class LoopTuningImpactClassifier
         ArgumentNullException.ThrowIfNull(previous);
         ArgumentNullException.ThrowIfNull(current);
 
-        if (previous.AnalysisMusicalQuality != current.AnalysisMusicalQuality)
+        if (previous.AnalysisMusicalQuality != current.AnalysisMusicalQuality
+            || !StringEquals(previous.AnalysisBeatProvider, current.AnalysisBeatProvider))
         {
             return LoopTuningImpact.Analysis;
         }

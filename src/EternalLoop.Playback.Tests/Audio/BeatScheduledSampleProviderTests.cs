@@ -118,7 +118,7 @@ public sealed class BeatScheduledSampleProviderTests
         var provider = new BeatScheduledSampleProvider(
             PlaybackFixtures.LoadedAudio(sampleRate: 10),
             PlaybackFixtures.BuildTrack(),
-            new BranchDecisionEngine(new BranchDecisionOptions { InfiniteMode = false }),
+            new BranchDecisionEngine(new BranchDecisionOptions { ContinuousMode = false }),
             new BranchTransitionOptions { Enabled = false });
         List<int> beats = [];
         provider.BeatChanged += (_, args) => beats.Add(args.BeatIndex);

@@ -71,6 +71,9 @@ public sealed class AnalysisEngineCommand
                     new AnalysisOptions
                     {
                         Artist = arguments.Artist,
+                        BeatProvider = arguments.BeatProvider,
+                        AiFallbackMode = arguments.AiFallbackMode,
+                        HybridCalibrationProfile = arguments.HybridCalibrationProfile,
                         MusicalQuality = CreateMusicalQualityOptions(arguments)
                     },
                     progress,
@@ -153,7 +156,8 @@ public sealed class AnalysisEngineCommand
             BeatMicroSnap = arguments.MusicalQualityBeatMicroSnap,
             AdaptiveTatums = arguments.MusicalQualityTatums,
             StructuralSections = arguments.MusicalQualitySections,
-            EvidenceConfidences = arguments.MusicalQualityConfidences
+            EvidenceConfidences = arguments.MusicalQualityConfidences,
+            TatumMode = arguments.TatumMode
         };
     }
 

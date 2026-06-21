@@ -59,9 +59,9 @@ public sealed class BranchDecisionEngine
         RuntimeBranchOrder branchOrder = GetBranchOrder(linearBeatIndex);
         double chanceBeforeDecision = _branchChance;
 
-        if (!_options.InfiniteMode)
+        if (!_options.ContinuousMode)
         {
-            return CreateResult(currentBeat, seedBeat, seedBeat, null, chanceBeforeDecision, _branchChance, 1, "Infinite mode disabled");
+            return CreateResult(currentBeat, seedBeat, seedBeat, null, chanceBeforeDecision, _branchChance, 1, "Continuous mode disabled");
         }
 
         if (_bringItHome)
@@ -573,7 +573,7 @@ public sealed class BranchDecisionEngine
 
         return new BranchDecisionOptions
         {
-            InfiniteMode = options.InfiniteMode,
+            ContinuousMode = options.ContinuousMode,
             MinRandomBranchChance = min,
             MaxRandomBranchChance = max,
             RandomBranchChanceDelta = delta,

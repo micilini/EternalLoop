@@ -7,7 +7,7 @@ namespace EternalLoop.App.Services;
 internal static class Mp4ArtworkReader
 {
     private const int MaxAtomDepth = 16;
-    private const int HeaderSize = 8; // 4-byte size + 4-byte type
+    private const int HeaderSize = 8;
 
     public static byte[]? TryReadArtwork(string filePath)
     {
@@ -87,14 +87,12 @@ internal static class Mp4ArtworkReader
 
             if (type == "covr")
             {
-                // Traverse children to find 'data'
                 return FindDataInCovr(stream, atomEnd, depth + 1);
             }
 
             if (IsContainer(type))
             {
                 long containerStart = stream.Position;
-                // Special case for 'meta': skip 4-byte version/flags
                 if (type == "meta")
                 {
                     if (stream.Position + 4 <= atomEnd)
@@ -133,7 +131,6 @@ internal static class Mp4ArtworkReader
 
             if (type == "data")
             {
-                // Found data! skip 8 bytes (4 bytes type/flags, 4 bytes locale/reserved)
                 if (stream.Position + 8 <= atomEnd)
                 {
                     stream.Position += 8;

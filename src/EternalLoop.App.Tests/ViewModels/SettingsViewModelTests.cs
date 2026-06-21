@@ -26,6 +26,8 @@ public sealed class SettingsViewModelTests
             viewModel.JumpCooldown.Should().Be(4);
             viewModel.FirstPassLinearPlaybackRatio.Should().Be(0.10);
             viewModel.MaxBranchesPerBeat.Should().Be(6);
+            viewModel.SelectedAnalysisBeatModeId.Should().Be(AnalysisBeatModeCatalog.EnhancedId);
+            viewModel.IsEnhancedAnalysisSelected.Should().BeTrue();
             viewModel.TuningStatusText.Should().Be("Tuning saved. It will be applied to the next track.");
             repository.SaveCount.Should().Be(1);
         });
@@ -91,6 +93,26 @@ public sealed class SettingsViewModelTests
         {
             repository.SaveCount.Should().Be(1);
             settings.Tuning.JumpProbability.Should().Be(0.33);
+            viewModel.IsTuningDirty.Should().BeFalse();
+        });
+    }
+
+    [Fact]
+    public async Task ChangingAnalysisBeatModeShouldScheduleAndPersistSettings()
+    {
+        var settings = new EternalLoopUserSettings { Tuning = LoopTuningSettings.Balanced() };
+        var repository = new FakeSettingsRepository();
+        var viewModel = CreateViewModel(settings, repository: repository);
+
+        viewModel.IsClassicAnalysisSelected = true;
+
+        await AsyncTest.EventuallyAsync(() =>
+        {
+            repository.SaveCount.Should().Be(1);
+            settings.Tuning.AnalysisBeatProvider.Should().Be(AnalysisBeatModeCatalog.ClassicId);
+            viewModel.IsClassicAnalysisSelected.Should().BeTrue();
+            viewModel.IsEnhancedAnalysisSelected.Should().BeFalse();
+            viewModel.AnalysisBeatModeDescription.Should().Contain("original deterministic timing analysis");
             viewModel.IsTuningDirty.Should().BeFalse();
         });
     }

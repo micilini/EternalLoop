@@ -2,7 +2,7 @@ namespace EternalLoop.Playback.Runtime;
 
 public sealed class BranchDecisionOptions
 {
-    public bool InfiniteMode { get; init; } = true;
+    public bool ContinuousMode { get; init; } = true;
 
     public double MinRandomBranchChance { get; init; } = 0.18;
 

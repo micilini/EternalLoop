@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "purpose": "Beat This ONNX chunk model input/output contract for EternalLoop AnalysisEngine",
+  "model_family": "beat-this",
+  "model_variant": "large",
+  "onnx_kind": "spectrogram-to-frame-logits",
+  "sample_rate": 22050,
+  "frame_rate": 100.0,
+  "chunk_frames": 1500,
+  "border_frames": 6,
+  "input": {
+    "name": "spectrogram",
+    "dtype": "float32",
+    "shape": ["batch", "frames", "mel_bins"],
+    "default_batch": 1,
+    "default_frames": 1500,
+    "default_mel_bins": 128
+  },
+  "outputs": [
+    {
+      "name": "beat_logits",
+      "dtype": "float32",
+      "shape": ["batch", "frames"]
+    },
+    {
+      "name": "downbeat_logits",
+      "dtype": "float32",
+      "shape": ["batch", "frames"]
+    }
+  ],
+  "notes": [
+    "This contract exports the Beat This frame model, not File2Beats and not audio decoding.",
+    "C# preprocessing must reproduce Beat This log-mel spectrograms before feeding this model.",
+    "C# postprocessing must convert logits to beat/downbeat times in later phases.",
+    "Generated ONNX files must not be committed until licensing and packaging are explicitly approved."
+  ]
+}

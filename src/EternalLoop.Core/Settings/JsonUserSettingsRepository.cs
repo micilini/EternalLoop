@@ -189,7 +189,7 @@ public sealed class JsonUserSettingsRepository : IUserSettingsRepository
             normalized.Tuning = MigrateM18PresetDefaults(normalized.Tuning);
         }
 
-        normalized.SettingsSchemaVersion = Math.Max(5, normalized.SettingsSchemaVersion);
+        normalized.SettingsSchemaVersion = Math.Max(6, normalized.SettingsSchemaVersion);
         normalized.Tuning = Normalize(normalized.Tuning);
 
         return normalized;
@@ -214,6 +214,9 @@ public sealed class JsonUserSettingsRepository : IUserSettingsRepository
             tuning.FirstPassLinearPlaybackRatio,
             0.0,
             0.95);
+        tuning.AnalysisBeatProvider = AnalysisBeatModeCatalog
+            .GetById(tuning.AnalysisBeatProvider)
+            .Id;
         tuning.BranchQuantumType = string.IsNullOrWhiteSpace(tuning.BranchQuantumType)
             ? "beats"
             : tuning.BranchQuantumType;

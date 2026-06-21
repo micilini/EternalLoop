@@ -1,3 +1,5 @@
+using EternalLoop.AnalysisEngine.Core.Options;
+
 namespace EternalLoop.AnalysisEngine.Cli;
 
 public sealed class AnalysisEngineArguments
@@ -31,4 +33,12 @@ public sealed class AnalysisEngineArguments
     public bool MusicalQualitySections { get; init; }
 
     public bool MusicalQualityConfidences { get; init; }
+
+    public BeatTrackingProviderKind BeatProvider { get; init; } = BeatTrackingProviderKind.Auto;
+
+    public AiFallbackMode AiFallbackMode { get; init; } = AiFallbackMode.FallbackToBuiltIn;
+
+    public HybridCalibrationProfile HybridCalibrationProfile { get; init; } = HybridCalibrationProfile.StrictProduction;
+
+    public TatumMode TatumMode { get; init; } = TatumMode.Default;
 }

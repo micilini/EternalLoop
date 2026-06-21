@@ -1,0 +1,24 @@
+{
+  "name": "beat-this-large",
+  "version": "final0",
+  "license": "MIT",
+  "source_repository": "https://github.com/CPJKU/beat_this",
+  "source_checkpoint": "final0",
+  "model_file": "beat-this-large.onnx",
+  "model_sha256": "REPLACE_WITH_SHA256_AFTER_LOCAL_IMPORT",
+  "sample_rate": 22050,
+  "frame_rate": 50.0,
+  "input_name": "spectrogram",
+  "output_names": [
+    "beat_logits",
+    "downbeat_logits"
+  ],
+  "onnx_kind": "spectrogram-to-frame-logits",
+  "chunk_frames": 1500,
+  "mel_bins": 128,
+  "frame_size": 1024,
+  "opset": 17,
+  "exporter": "torch-onnx-legacy",
+  "third_party_notice": "THIRD_PARTY_NOTICES.md",
+  "third_party_license": "BEAT_THIS_LICENSE.txt"
+}

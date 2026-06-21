@@ -1,6 +1,8 @@
 using EternalLoop.AnalysisEngine.Core.Analysis;
 using EternalLoop.AnalysisEngine.Core.Audio;
 using EternalLoop.AnalysisEngine.Core.BeatTracking;
+using EternalLoop.AnalysisEngine.Core.BeatTracking.Candidates;
+using EternalLoop.AnalysisEngine.Core.BeatTracking.Shadow;
 using EternalLoop.AnalysisEngine.Core.Features;
 using EternalLoop.AnalysisEngine.Core.Models;
 using EternalLoop.AnalysisEngine.Core.Options;
@@ -41,6 +43,11 @@ public sealed class TrackAnalysisPipelineTests
         analysis.Sections.Should().ContainSingle();
         analysis.MicroFingerprints.Should().BeEmpty();
         analysis.Ai.Should().BeNull();
+        analysis.Diagnostics.Should().NotBeNull();
+        analysis.Diagnostics!.BeatProviderName.Should().Be("built-in");
+        analysis.Diagnostics.BeatProviderUsedAi.Should().BeFalse();
+        analysis.Diagnostics.BeatProviderUsedBuiltIn.Should().BeTrue();
+        analysis.Diagnostics.BeatProviderDownbeatCount.Should().Be(0);
     }
 
     [Fact]
@@ -135,6 +142,81 @@ public sealed class TrackAnalysisPipelineTests
         flaggedOff.Sections.Select(section => section.Start).Should().Equal(baseline.Sections.Select(section => section.Start));
         flaggedOff.Sections.Select(section => section.Duration).Should().Equal(baseline.Sections.Select(section => section.Duration));
         flaggedOff.Diagnostics.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_uses_provider_downbeats_for_bars_when_available()
+    {
+        var audio = TestSignalFactory.CreateSineLoadedAudio(durationSeconds: 5.0);
+        var features = CreateFeatureMatrix(frameCount: 128);
+        var beatTracking = new BeatTrackingResult
+        {
+            EstimatedBpm = 120.0,
+            BeatTimes = Enumerable.Range(0, 9).Select(index => index * 0.5).ToArray(),
+            Confidences = Enumerable.Repeat(0.9, 9).ToArray(),
+            DownbeatTimes = [1.0, 3.0],
+            ProviderName = "test-provider",
+            UsedAiProvider = true,
+            UsedBuiltInProvider = false
+        };
+        var pipeline = CreatePipeline(audio, features, beatTracking);
+
+        var analysis = await pipeline.AnalyzeAsync(
+            "C:\\Music\\song.wav",
+            new AnalysisOptions(),
+            NullAnalysisProgressReporter.Instance,
+            CancellationToken.None);
+
+        analysis.Bars.Should().HaveCount(2);
+        analysis.Bars[0].Start.Should().Be(1.0);
+        analysis.Bars[1].Start.Should().Be(3.0);
+        analysis.Diagnostics.Should().NotBeNull();
+        analysis.Diagnostics!.BarPhaseMode.Should().Be("provider-downbeats");
+        analysis.Diagnostics.BeatProviderDownbeatCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_without_provider_downbeats_preserves_bar_phase_flow()
+    {
+        var audio = TestSignalFactory.CreateSineLoadedAudio(durationSeconds: 4.0);
+        var features = CreateFeatureMatrix(frameCount: 64);
+        var beatTracking = CreateBeatTrackingResult();
+        var pipeline = CreatePipeline(audio, features, beatTracking);
+
+        var analysis = await pipeline.AnalyzeAsync(
+            "C:\\Music\\song.wav",
+            new AnalysisOptions(),
+            NullAnalysisProgressReporter.Instance,
+            CancellationToken.None);
+
+        analysis.Bars[0].Start.Should().Be(0.0);
+        analysis.Diagnostics.Should().NotBeNull();
+        analysis.Diagnostics!.BarPhaseMode.Should().NotBe("provider-downbeats");
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_with_invalid_provider_downbeats_falls_back_to_bar_phase_flow()
+    {
+        var audio = TestSignalFactory.CreateSineLoadedAudio(durationSeconds: 4.0);
+        var features = CreateFeatureMatrix(frameCount: 64);
+        var beatTracking = new BeatTrackingResult
+        {
+            EstimatedBpm = 120.0,
+            BeatTimes = [0.0, 0.5, 1.0, 1.5],
+            Confidences = [1.0, 0.9, 0.8, 0.7],
+            DownbeatTimes = [double.NaN, 99.0]
+        };
+        var pipeline = CreatePipeline(audio, features, beatTracking);
+
+        var analysis = await pipeline.AnalyzeAsync(
+            "C:\\Music\\song.wav",
+            new AnalysisOptions(),
+            NullAnalysisProgressReporter.Instance,
+            CancellationToken.None);
+
+        analysis.Bars.Should().NotBeEmpty();
+        analysis.Diagnostics.Should().NotBeNull();
+        analysis.Diagnostics!.BarPhaseMode.Should().NotBe("provider-downbeats");
     }
 
     [Fact]
@@ -235,6 +317,192 @@ public sealed class TrackAnalysisPipelineTests
     }
 
     [Fact]
+    public async Task AnalyzeAsync_uses_echo_compatible_tatums_when_ai_provider_succeeds()
+    {
+        var audio = TestSignalFactory.CreateSineLoadedAudio(durationSeconds: 4.0);
+        var features = CreateFeatureMatrix(frameCount: 64);
+        var beatTracking = new BeatTrackingResult
+        {
+            EstimatedBpm = 120.0,
+            BeatTimes = [0.0, 0.5, 1.0, 1.5],
+            Confidences = [1.0, 0.9, 0.8, 0.7],
+            DownbeatTimes = [0.0, 1.0],
+            BeatGridMode = "ai",
+            ProviderName = "beat-this",
+            UsedAiProvider = true,
+            UsedBuiltInProvider = false,
+            UsedFallbackProvider = false
+        };
+        var pipeline = CreatePipeline(audio, features, beatTracking);
+
+        var analysis = await pipeline.AnalyzeAsync(
+            "C:\\Music\\song.wav",
+            new AnalysisOptions { BeatProvider = BeatTrackingProviderKind.BeatThis },
+            NullAnalysisProgressReporter.Instance,
+            CancellationToken.None);
+
+        analysis.Tatums.Should().HaveCount(analysis.Beats.Count * 2);
+        analysis.Diagnostics!.TatumMode.Should().Be("fixed-two-per-beat");
+        analysis.Diagnostics.RequestedTatumMode.Should().Be("Default");
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_keeps_built_in_tatum_behaviour_by_default()
+    {
+        var audio = TestSignalFactory.CreateSineLoadedAudio(durationSeconds: 4.0);
+        var features = CreateFeatureMatrix(frameCount: 64);
+        var beatTracking = CreateBeatTrackingResult();
+        var pipeline = CreatePipeline(audio, features, beatTracking);
+
+        var analysis = await pipeline.AnalyzeAsync(
+            "C:\\Music\\song.wav",
+            new AnalysisOptions(),
+            NullAnalysisProgressReporter.Instance,
+            CancellationToken.None);
+
+        analysis.Diagnostics!.TatumMode.Should().NotBe("fixed-two-per-beat");
+        analysis.Diagnostics.RequestedTatumMode.Should().Be("Default");
+        analysis.Diagnostics.BeatProviderUsedAi.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_preserves_shadow_diagnostics_in_analysis_diagnostics()
+    {
+        var audio = TestSignalFactory.CreateSineLoadedAudio(durationSeconds: 4.0);
+        var features = CreateFeatureMatrix(frameCount: 64);
+        var shadow = BeatGridShadowDiagnostics.NotConfigured(CreateBeatTrackingResult());
+        var beatTracking = CreateBeatTrackingResult(shadow);
+        var pipeline = CreatePipeline(audio, features, beatTracking);
+
+        var analysis = await pipeline.AnalyzeAsync(
+            "C:\\Music\\song.wav",
+            new AnalysisOptions { BeatProvider = BeatTrackingProviderKind.Shadow },
+            NullAnalysisProgressReporter.Instance,
+            CancellationToken.None);
+
+        analysis.Diagnostics!.BeatProviderShadowDiagnostics.Should().BeSameAs(shadow);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_maps_shadow_diagnostics_to_beat_provider_export()
+    {
+        var audio = TestSignalFactory.CreateSineLoadedAudio(durationSeconds: 4.0);
+        var features = CreateFeatureMatrix(frameCount: 64);
+        var shadow = BeatGridShadowDiagnostics.NotConfigured(CreateBeatTrackingResult());
+        var beatTracking = CreateBeatTrackingResult(shadow);
+        var pipeline = CreatePipeline(audio, features, beatTracking);
+
+        var analysis = await pipeline.AnalyzeAsync(
+            "C:\\Music\\song.wav",
+            new AnalysisOptions { BeatProvider = BeatTrackingProviderKind.Shadow },
+            NullAnalysisProgressReporter.Instance,
+            CancellationToken.None);
+
+        analysis.BeatProvider.Mode.Should().Be("dsp-shadow");
+        analysis.BeatProvider.Shadow.Should().BeSameAs(shadow);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_preserves_candidate_set_in_analysis_diagnostics()
+    {
+        var audio = TestSignalFactory.CreateSineLoadedAudio(durationSeconds: 4.0);
+        var features = CreateFeatureMatrix(frameCount: 64);
+        var candidateSet = new BeatGridCandidateFactory().CreateShadowSet(
+            CreateBeatTrackingResult(),
+            CreateBeatTrackingResult(),
+            advisorAvailable: true);
+        var beatTracking = CreateBeatTrackingResult(candidateSet: candidateSet);
+        var pipeline = CreatePipeline(audio, features, beatTracking);
+
+        var analysis = await pipeline.AnalyzeAsync(
+            "C:\\Music\\song.wav",
+            new AnalysisOptions { BeatProvider = BeatTrackingProviderKind.Shadow },
+            NullAnalysisProgressReporter.Instance,
+            CancellationToken.None);
+
+        analysis.Diagnostics!.BeatProviderCandidateSet.Should().BeSameAs(candidateSet);
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_maps_candidate_set_to_beat_provider_export()
+    {
+        var audio = TestSignalFactory.CreateSineLoadedAudio(durationSeconds: 4.0);
+        var features = CreateFeatureMatrix(frameCount: 64);
+        var candidateSet = new BeatGridCandidateFactory().CreateShadowSet(
+            CreateBeatTrackingResult(),
+            CreateBeatTrackingResult(),
+            advisorAvailable: true);
+        var beatTracking = CreateBeatTrackingResult(candidateSet: candidateSet);
+        var pipeline = CreatePipeline(audio, features, beatTracking);
+
+        var analysis = await pipeline.AnalyzeAsync(
+            "C:\\Music\\song.wav",
+            new AnalysisOptions { BeatProvider = BeatTrackingProviderKind.Shadow },
+            NullAnalysisProgressReporter.Instance,
+            CancellationToken.None);
+
+        analysis.BeatProvider.Candidates.Should().BeSameAs(candidateSet);
+        analysis.BeatProvider.Candidates!.Diagnostics.SelectedCandidateId.Should().Be("legacy");
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_maps_used_hybrid_to_diagnostics_and_export()
+    {
+        var audio = TestSignalFactory.CreateSineLoadedAudio(durationSeconds: 4.0);
+        var features = CreateFeatureMatrix(frameCount: 64);
+        var beatTracking = new BeatTrackingResult
+        {
+            EstimatedBpm = 120.0,
+            BeatTimes = [0.0, 0.5, 1.0, 1.5],
+            Confidences = [1.0, 0.9, 0.8, 0.7],
+            ProviderName = "hybrid",
+            BeatGridMode = "hybrid-experimental",
+            UsedAiProvider = true,
+            UsedBuiltInProvider = true,
+            UsedHybridProvider = true
+        };
+        var pipeline = CreatePipeline(audio, features, beatTracking);
+
+        var analysis = await pipeline.AnalyzeAsync(
+            "C:\\Music\\song.wav",
+            new AnalysisOptions { BeatProvider = BeatTrackingProviderKind.Hybrid },
+            NullAnalysisProgressReporter.Instance,
+            CancellationToken.None);
+
+        analysis.Diagnostics!.BeatProviderUsedHybrid.Should().BeTrue();
+        analysis.BeatProvider.UsedHybrid.Should().BeTrue();
+        analysis.BeatProvider.Mode.Should().Be("hybrid-experimental");
+    }
+
+    [Fact]
+    public async Task AnalyzeAsync_forces_echo_compatible_tatums_for_built_in_when_requested()
+    {
+        var audio = TestSignalFactory.CreateSineLoadedAudio(durationSeconds: 4.0);
+        var features = CreateFeatureMatrix(frameCount: 64);
+        var beatTracking = CreateBeatTrackingResult();
+        var pipeline = CreatePipeline(audio, features, beatTracking);
+
+        var analysis = await pipeline.AnalyzeAsync(
+            "C:\\Music\\song.wav",
+            new AnalysisOptions
+            {
+                BeatProvider = BeatTrackingProviderKind.BuiltIn,
+                MusicalQuality = new MusicalQualityOptions
+                {
+                    AdaptiveTatums = true,
+                    TatumMode = TatumMode.FixedTwoPerBeat
+                }
+            },
+            NullAnalysisProgressReporter.Instance,
+            CancellationToken.None);
+
+        analysis.Tatums.Should().HaveCount(analysis.Beats.Count * 2);
+        analysis.Diagnostics!.TatumMode.Should().Be("fixed-two-per-beat");
+        analysis.Diagnostics.RequestedTatumMode.Should().Be("FixedTwoPerBeat");
+        analysis.Diagnostics.BeatProviderUsedAi.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task AnalyzeAsync_throws_when_validation_fails()
     {
         var audio = TestSignalFactory.CreateSineLoadedAudio(durationSeconds: 4.0);
@@ -280,13 +548,17 @@ public sealed class TrackAnalysisPipelineTests
             NullLogger<TrackAnalysisPipeline>.Instance);
     }
 
-    private static BeatTrackingResult CreateBeatTrackingResult()
+    private static BeatTrackingResult CreateBeatTrackingResult(
+        BeatGridShadowDiagnostics? shadowDiagnostics = null,
+        BeatGridCandidateSet? candidateSet = null)
     {
         return new BeatTrackingResult
         {
             EstimatedBpm = 120.0,
             BeatTimes = [0.0, 0.5, 1.0, 1.5],
-            Confidences = [1.0, 0.9, 0.8, 0.7]
+            Confidences = [1.0, 0.9, 0.8, 0.7],
+            ShadowDiagnostics = shadowDiagnostics,
+            CandidateSet = candidateSet
         };
     }
 

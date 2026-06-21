@@ -1,7 +1,7 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/EternalLoop.App/EternalLoop.App.csproj" />
     <Project Path="src/EternalLoop.App.Tests/EternalLoop.App.Tests.csproj" />
+    <Project Path="src/EternalLoop.App/EternalLoop.App.csproj" />
     <Project Path="src/EternalLoop.Core/EternalLoop.Core.csproj" />
     <Project Path="src/EternalLoop.Tests/EternalLoop.Tests.csproj" />
   </Folder>
@@ -11,12 +11,13 @@
   <Folder Name="/src/EternalLoop.Playback.Tests/">
     <Project Path="src/EternalLoop.Playback.Tests/EternalLoop.Playback.Tests.csproj" />
   </Folder>
+  <Folder Name="/modules/" />
   <Folder Name="/modules/AnalysisEngine/">
     <File Path="modules/AnalysisEngine/EternalLoop.AnalysisEngine.slnx" />
   </Folder>
   <Folder Name="/modules/AnalysisEngine/src/">
-    <Project Path="modules/AnalysisEngine/src/EternalLoop.AnalysisEngine.Core/EternalLoop.AnalysisEngine.Core.csproj" />
     <Project Path="modules/AnalysisEngine/src/EternalLoop.AnalysisEngine.Cli/EternalLoop.AnalysisEngine.Cli.csproj" />
+    <Project Path="modules/AnalysisEngine/src/EternalLoop.AnalysisEngine.Core/EternalLoop.AnalysisEngine.Core.csproj" />
   </Folder>
   <Folder Name="/modules/AnalysisEngine/tests/">
     <Project Path="modules/AnalysisEngine/tests/EternalLoop.AnalysisEngine.Tests/EternalLoop.AnalysisEngine.Tests.csproj" />
@@ -25,8 +26,8 @@
     <File Path="modules/BranchAnalysis/EternalLoop.BranchAnalysis.slnx" />
   </Folder>
   <Folder Name="/modules/BranchAnalysis/src/">
-    <Project Path="modules/BranchAnalysis/src/EternalLoop.BranchAnalysis.Core/EternalLoop.BranchAnalysis.Core.csproj" />
     <Project Path="modules/BranchAnalysis/src/EternalLoop.BranchAnalysis.Cli/EternalLoop.BranchAnalysis.Cli.csproj" />
+    <Project Path="modules/BranchAnalysis/src/EternalLoop.BranchAnalysis.Core/EternalLoop.BranchAnalysis.Core.csproj" />
   </Folder>
   <Folder Name="/modules/BranchAnalysis/tests/">
     <Project Path="modules/BranchAnalysis/tests/EternalLoop.BranchAnalysis.Tests/EternalLoop.BranchAnalysis.Tests.csproj" />

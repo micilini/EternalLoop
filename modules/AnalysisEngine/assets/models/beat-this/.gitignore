@@ -1,0 +1,17 @@
+*.onnx
+*.ort
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.verification.json
+
+model.json
+
+!readme.md
+!THIRD_PARTY_NOTICES.md
+!BEAT_THIS_LICENSE.txt
+!model.json.example
+!.gitignore
+!.gitkeep

@@ -184,6 +184,29 @@ public sealed class AnalysisEngineCommandTests : IDisposable
         json.Should().Contain("\"loopAnalysis\"");
     }
 
+    [Fact]
+    public void Command_passes_beat_provider_and_ai_fallback_to_analysis_options()
+    {
+        var input = CreateInputWaveFile("beat-this-fail.wav");
+        var output = Path.Combine(_rootDirectory, "beat-this-fail-out");
+
+        var exitCode = AnalysisEngineProgram.Run(
+        [
+            "--input",
+            input,
+            "--output-dir",
+            output,
+            "--beat-provider",
+            "beat-this",
+            "--ai-fallback",
+            "fail",
+            "--force",
+            "--quiet"
+        ]);
+
+        exitCode.Should().Be(AnalysisEngineExitCodes.ValidationFailed);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_rootDirectory))

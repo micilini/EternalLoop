@@ -12,6 +12,9 @@ public static class LoopTuningOptionsMapper
         return new AnalysisOptions
         {
             Artist = AnalysisOptions.DefaultArtist,
+            BeatProvider = AnalysisBeatModeCatalog.IsEnhanced(settings.AnalysisBeatProvider)
+                ? BeatTrackingProviderKind.BeatThis
+                : BeatTrackingProviderKind.BuiltIn,
             MusicalQuality = settings.AnalysisMusicalQuality
                 ? MusicalQualityOptions.AllEnabled
                 : new MusicalQualityOptions()

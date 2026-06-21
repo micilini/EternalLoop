@@ -24,6 +24,8 @@ public sealed class LoopTuningSettings
 
     public bool AnalysisMusicalQuality { get; set; } = true;
 
+    public string AnalysisBeatProvider { get; set; } = AnalysisBeatModeCatalog.EnhancedId;
+
     public static LoopTuningSettings Balanced()
     {
         var settings = new LoopTuningSettings();

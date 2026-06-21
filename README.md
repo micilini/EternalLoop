@@ -3,11 +3,11 @@
 </p>
 
 <h1 align="center">
-  EternalLoop 1.2.0
+  EternalLoop 1.3.0
 </h1>
 
 <p align="center">
-  A local infinite music player that analyzes your songs and creates smooth loop branches automatically, with branch-quality filters for reducing weak jump candidates.
+  A local adaptive music player that analyzes your songs with classic deterministic timing or local AI-enhanced timing, then creates smooth loop branches automatically with branch-quality filters for reducing weak jump candidates.
 </p>
 
 <p align="center">
@@ -28,11 +28,13 @@
 
 # EternalLoop
 
-EternalLoop is a Windows-native infinite music player that analyzes local audio files, detects beats, builds musical branch points, and keeps playback looping without relying on any kind of external API. (turns local music files into an infinite listening experience)
+EternalLoop is a Windows-native adaptive music player that analyzes local audio files, detects beats, builds musical branch points, and keeps playback looping without relying on any kind of external API.
 
-It analyzes your track, detects beats, extracts audio features, finds musically compatible jump points, and plays the song through a local jukebox engine designed to avoid harsh cuts, repeated jumps, dead-end branches, and obvious phrase restarts.
+It can run with the classic EternalLoop analysis engine or with Enhanced Analysis, a local AI-assisted timing mode used to improve beat and rhythm understanding while keeping the app offline and user-controlled.
 
-The application is built for offline use. Your audio stays on your machine, analysis results are cached locally, and tuning presets let you choose between safer or more active loop behavior.
+It analyzes your track, detects beats, extracts audio features, finds musically compatible jump points, and plays the song through a local adaptive engine designed to avoid harsh cuts, repeated jumps, dead-end branches, and obvious phrase restarts.
+
+The application is built for offline use. Your audio stays on your machine, analysis results are cached locally, and tuning presets let you choose between safer or more active loop behavior. Enhanced Analysis also runs locally; it does not upload your audio to any cloud service.
 
 <p align="center">
   <img src="images/eternalloop-splash.png" alt="EternalLoop splash screen" width="800">
@@ -52,6 +54,8 @@ The application is built for offline use. Your audio stays on your machine, anal
 
 - Windows-native desktop app built with WPF and .NET 8.
 - local-first audio analysis and playback.
+- Optional Enhanced Analysis mode using a local AI timing model.
+- Classic Analysis mode for deterministic, compatibility-focused timing.
 - Supports MP3, WAV, M4A, and AAC files.
 - Automatic beat tracking and beat-aligned playback.
 - MFCC, chroma, RMS/loudness, spectral flux, and bar-position features.
@@ -128,6 +132,19 @@ The settings view lets you switch presets and adjust loop behavior without editi
 
 ---
 
+## Enhanced Analysis
+
+EternalLoop 1.3.0 adds an Enhanced Analysis mode for local AI-assisted timing analysis.
+
+| Mode | Description |
+|---|---|
+| Enhanced | Uses local AI timing analysis for rhythm, beat, and jump timing. This is the default mode in EternalLoop 1.3.0. |
+| Classic | Uses EternalLoop's original deterministic timing analysis for compatibility and fallback testing. |
+
+Enhanced Analysis is still local-first. It runs from model files shipped with the release package and does not send audio outside your computer.
+
+---
+
 ## Local Cache
 
 EternalLoop saves analysis results locally so previously opened songs can load faster.
@@ -155,8 +172,22 @@ If the analysis schema changes between versions, old cache entries can be ignore
 - Microsoft.Extensions.Hosting
 - Microsoft.Extensions.DependencyInjection
 - Microsoft.Extensions.Logging
+- Microsoft.ML.OnnxRuntime
 - xUnit
 - FluentAssertions
+
+---
+
+## Third-party Notices
+
+Enhanced Analysis uses a locally packaged AI timing model derived from the CPJKU Beat This project.
+
+Third-party model and license notices are kept in the model asset folder:
+
+- [Third-party notices](modules/AnalysisEngine/assets/models/beat-this/THIRD_PARTY_NOTICES.md)
+- [Third-party license file](modules/AnalysisEngine/assets/models/beat-this/BEAT_THIS_LICENSE.txt)
+
+EternalLoop redistributes the converted inference model used by the app. It does not redistribute the original training datasets.
 
 ---
 
@@ -185,6 +216,23 @@ dotnet restore .\EternalLoop.slnx
 dotnet build .\EternalLoop.slnx --configuration Debug
 dotnet run --project .\src\EternalLoop.App\EternalLoop.App.csproj
 ```
+
+For local development with Enhanced Analysis, make sure the local model files exist under:
+
+```text
+modules\AnalysisEngine\assets\models\beat-this
+```
+
+Expected local files:
+
+```text
+beat-this-large.onnx
+model.json
+THIRD_PARTY_NOTICES.md
+BEAT_THIS_LICENSE.txt
+```
+
+The `.onnx` model and real `model.json` are intentionally ignored by git, but they are required before running or publishing builds that use Enhanced Analysis.
 
 ---
 
@@ -221,6 +269,8 @@ powershell -ExecutionPolicy Bypass -File .\tools\verify-command-error-handling.p
 powershell -ExecutionPolicy Bypass -File .\tools\verify-app-regression-coverage.ps1
 powershell -ExecutionPolicy Bypass -File .\tools\verify-release-memory.ps1
 powershell -ExecutionPolicy Bypass -File .\tools\verify-release-clean-code.ps1
+powershell -ExecutionPolicy Bypass -File .\tools\verify-release-clean-source.ps1
+powershell -ExecutionPolicy Bypass -File .\tools\verify-third-party-notices.ps1
 powershell -ExecutionPolicy Bypass -File .\tools\verify-publish-package.ps1
 powershell -ExecutionPolicy Bypass -File .\tools\verify-repository-hygiene.ps1
 powershell -ExecutionPolicy Bypass -File .\tools\verify-ui-exception-policy.ps1
@@ -234,7 +284,97 @@ powershell -ExecutionPolicy Bypass -File .\tools\verify-release-ready.ps1
 
 ---
 
+## Enhanced Analysis Model Assets for Developers
+
+The Windows release package includes the Enhanced Analysis model files. The source repository does not commit the large `.onnx` model or the local runtime `model.json`.
+
+The Python conversion tooling lives in:
+
+```text
+modules\AnalysisEngine\tools\beat-this-conversion
+```
+
+Recommended Python setup:
+
+```powershell
+cd .\modules\AnalysisEngine\tools\beat-this-conversion
+
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+Export the ONNX model from a local checkpoint:
+
+```powershell
+python .\export_beat_this_to_onnx.py `
+  --checkpoint "C:\Models\BeatThis\final0.ckpt" `
+  --output ".\output\beat-this-large.onnx" `
+  --metadata-output ".\output\model.json" `
+  --model-name "beat-this-large" `
+  --model-version "final0" `
+  --license "MIT"
+```
+
+Verify the exported model:
+
+```powershell
+python .\verify_onnx.py `
+  --model ".\output\beat-this-large.onnx" `
+  --contract ".\sample_input_contract.json" `
+  --summary-output ".\output\beat-this-large.verification.json"
+```
+
+Then go back to the AnalysisEngine module and sync the generated model assets:
+
+```powershell
+cd ..\..
+
+powershell -ExecutionPolicy Bypass -File .\tools\sync-beatthis-model-assets.ps1 `
+  -SourceRoot ".\tools\beat-this-conversion\output" `
+  -DestinationRoot ".\assets\models\beat-this"
+```
+
+Before publishing, validate the local model notices and hash:
+
+```powershell
+cd ..\..
+
+powershell -ExecutionPolicy Bypass -File .\tools\verify-third-party-notices.ps1
+```
+
+The release package expects these files to be present locally:
+
+```text
+modules\AnalysisEngine\assets\models\beat-this\beat-this-large.onnx
+modules\AnalysisEngine\assets\models\beat-this\model.json
+modules\AnalysisEngine\assets\models\beat-this\THIRD_PARTY_NOTICES.md
+modules\AnalysisEngine\assets\models\beat-this\BEAT_THIS_LICENSE.txt
+```
+
+Do not commit the generated `.onnx`, the real `model.json`, or local verification files. They are runtime/release artifacts, not source files.
+
+---
+
 ## Release Build
+
+Before publishing a public build with Enhanced Analysis, confirm the local model assets exist:
+
+```powershell
+Get-ChildItem .\modules\AnalysisEngine\assets\models\beat-this
+powershell -ExecutionPolicy Bypass -File .\tools\verify-third-party-notices.ps1
+```
+
+The publish package should include only these model runtime files:
+
+```text
+assets\models\beat-this\beat-this-large.onnx
+assets\models\beat-this\model.json
+assets\models\beat-this\THIRD_PARTY_NOTICES.md
+assets\models\beat-this\BEAT_THIS_LICENSE.txt
+```
 
 Recommended release automation:
 
@@ -253,7 +393,13 @@ dotnet publish .\src\EternalLoop.App\EternalLoop.App.csproj `
 The publish output is written to:
 
 ```text
-artifacts\publish\EternalLoop-1.2.0-win-x64
+artifacts\publish\EternalLoop-1.3.0-win-x64
+```
+
+After publishing, validate the package:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\verify-publish-package.ps1
 ```
 
 Recommended release settings:
@@ -275,6 +421,8 @@ dotnet build .\EternalLoop.slnx -c Release
 dotnet test .\EternalLoop.slnx -c Release
 dotnet test .\modules\AnalysisEngine\EternalLoop.AnalysisEngine.slnx -c Release
 dotnet test .\modules\BranchAnalysis\EternalLoop.BranchAnalysis.slnx -c Release
+powershell -ExecutionPolicy Bypass -File .\tools\verify-third-party-notices.ps1
+powershell -ExecutionPolicy Bypass -File .\tools\verify-release-clean-source.ps1
 powershell -ExecutionPolicy Bypass -File .\tools\verify-release-ready.ps1
 ```
 
@@ -294,6 +442,22 @@ After publishing, test the generated executable before distribution:
 ---
 
 ## Version History
+
+### Version 1.3.0
+
+Enhanced Analysis release.
+
+Highlights:
+
+- Added Enhanced Analysis mode using a local AI timing model for rhythm and beat understanding.
+- Added Classic Analysis mode for deterministic fallback and compatibility testing.
+- Added Settings support for switching between Enhanced and Classic analysis.
+- Improved beat timing precision in the WPF app while keeping the app offline-first.
+- Added ONNX runtime model packaging for the Windows release build.
+- Added third-party notices and model license packaging for the Enhanced Analysis model.
+- Added release checks for model notices, model hash validation, publish contents, and clean source packaging.
+- Refined release hygiene by removing roadmap artifacts, internal cleanup terms, and development-only files from the public package.
+- Preserved local cache, tuning presets, branch analysis, adaptive playback, and Bring It Home behavior.
 
 ### Version 1.2.0
 
@@ -338,6 +502,8 @@ EternalLoop analyzes audio locally.
 
 The application does not require a cloud account, does not upload your songs, and does not depend on streaming-service APIs for analysis.
 
+Enhanced Analysis also runs locally from packaged model files. Your audio is not sent to an external AI service.
+
 ---
 
 ## Contributing
@@ -351,6 +517,7 @@ Before opening a Pull Request, please run:
 ```powershell
 dotnet build .\EternalLoop.slnx -c Release
 dotnet test .\EternalLoop.slnx -c Release
+powershell -ExecutionPolicy Bypass -File .\tools\verify-third-party-notices.ps1
 powershell -ExecutionPolicy Bypass -File .\tools\verify-release-ready.ps1
 ```
 

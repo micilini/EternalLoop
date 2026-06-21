@@ -1,4 +1,6 @@
 using System.Text.Json;
+using EternalLoop.AnalysisEngine.Core.BeatTracking;
+using EternalLoop.AnalysisEngine.Core.BeatTracking.Shadow;
 using EternalLoop.AnalysisEngine.Core.Export;
 using EternalLoop.AnalysisEngine.Core.Export.LoopAnalysis;
 using EternalLoop.AnalysisEngine.Core.Models;
@@ -142,7 +144,43 @@ public sealed class LoopAnalysisMapperTests
         document.Info.Artist.Should().Be(AnalysisOptions.DefaultArtist);
     }
 
-    private static TrackAnalysis CreateAnalysis(double durationSeconds = 10.0)
+    [Fact]
+    public void LoopAnalysisMapper_maps_beat_provider_diagnostics()
+    {
+        var document = LoopAnalysisMapper.Map(
+            CreateAnalysis(),
+            "track-id",
+            "Song",
+            "Artist");
+
+        document.BeatProvider.Name.Should().Be("beat-this");
+        document.BeatProvider.Mode.Should().Be("onnx-local");
+        document.BeatProvider.ModelName.Should().Be("beat-this-large");
+        document.BeatProvider.UsedAi.Should().BeTrue();
+        document.BeatProvider.UsedBuiltIn.Should().BeFalse();
+        document.BeatProvider.DownbeatCount.Should().Be(2);
+        document.BeatProvider.BeatNumberCount.Should().Be(8);
+        document.BeatProvider.EstimatedMeter.Should().Be(4);
+        document.BeatProvider.TatumMode.Should().Be("fixed-two-per-beat");
+        document.BeatProvider.BarPhaseMode.Should().Be("provider-downbeats");
+    }
+
+    [Fact]
+    public void LoopAnalysisMapper_preserves_shadow_diagnostics()
+    {
+        var shadow = BeatGridShadowDiagnostics.NotConfigured(CreateBeatTrackingResult());
+        var document = LoopAnalysisMapper.Map(
+            CreateAnalysis(10.0, CreateBeatProvider(shadow)),
+            "track-id",
+            "Song",
+            "Artist");
+
+        document.BeatProvider.Shadow.Should().BeSameAs(shadow);
+    }
+
+    private static TrackAnalysis CreateAnalysis(
+        double durationSeconds = 10.0,
+        BeatProviderExportDiagnostics? beatProvider = null)
     {
         return new TrackAnalysis
         {
@@ -153,7 +191,42 @@ public sealed class LoopAnalysisMapperTests
             Tatums = [CreateTatum()],
             Sections = [CreateSection()],
             MicroFingerprints = [],
-            Ai = null
+            Ai = null,
+            BeatProvider = beatProvider ?? CreateBeatProvider()
+        };
+    }
+
+    private static BeatProviderExportDiagnostics CreateBeatProvider(BeatGridShadowDiagnostics? shadow = null)
+    {
+        return new BeatProviderExportDiagnostics
+        {
+            Name = "beat-this",
+            Mode = "onnx-local",
+            Version = "1.0",
+            License = "MIT",
+            ModelName = "beat-this-large",
+            ModelSha256 = "abc123",
+            UsedAi = true,
+            UsedBuiltIn = false,
+            UsedFallback = false,
+            DownbeatCount = 2,
+            BeatNumberCount = 8,
+            EstimatedMeter = 4,
+            BeatGridMode = "beat-this-onnx-musical-v1",
+            TatumMode = "fixed-two-per-beat",
+            RequestedTatumMode = "Default",
+            BarPhaseMode = "provider-downbeats",
+            Shadow = shadow
+        };
+    }
+
+    private static BeatTrackingResult CreateBeatTrackingResult()
+    {
+        return new BeatTrackingResult
+        {
+            EstimatedBpm = 120.0,
+            BeatTimes = [0.0, 0.5, 1.0, 1.5],
+            Confidences = [1.0, 0.9, 0.8, 0.7]
         };
     }
 

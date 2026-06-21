@@ -14,11 +14,23 @@ public sealed class LoopTuningOptionsMapperTests
         AnalysisOptions options = LoopTuningOptionsMapper.ToAnalysisOptions(settings);
 
         options.Artist.Should().Be("Local");
+        options.BeatProvider.Should().Be(BeatTrackingProviderKind.BeatThis);
         options.MusicalQuality.AcousticSegmentation.Should().BeTrue();
         options.MusicalQuality.BeatMicroSnap.Should().BeTrue();
         options.MusicalQuality.AdaptiveTatums.Should().BeTrue();
         options.MusicalQuality.StructuralSections.Should().BeTrue();
         options.MusicalQuality.EvidenceConfidences.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ToAnalysisOptionsShouldMapClassicAnalysisToBuiltIn()
+    {
+        var settings = LoopTuningSettings.Balanced();
+        settings.AnalysisBeatProvider = AnalysisBeatModeCatalog.ClassicId;
+
+        AnalysisOptions options = LoopTuningOptionsMapper.ToAnalysisOptions(settings);
+
+        options.BeatProvider.Should().Be(BeatTrackingProviderKind.BuiltIn);
     }
 
     [Fact]

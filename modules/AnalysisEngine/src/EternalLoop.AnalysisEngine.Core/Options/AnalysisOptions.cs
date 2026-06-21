@@ -18,6 +18,12 @@ public sealed class AnalysisOptions
 
     public string Artist { get; init; } = DefaultArtist;
 
+    public BeatTrackingProviderKind BeatProvider { get; init; } = BeatTrackingProviderKind.Auto;
+
+    public AiFallbackMode AiFallbackMode { get; init; } = AiFallbackMode.FallbackToBuiltIn;
+
+    public HybridCalibrationProfile HybridCalibrationProfile { get; init; } = HybridCalibrationProfile.StrictProduction;
+
     public MusicalQualityOptions MusicalQuality { get; init; } = new();
 
     public AnalysisTuningOptions Tuning { get; init; } = new();
@@ -34,6 +40,8 @@ public sealed class MusicalQualityOptions
     public bool StructuralSections { get; init; } = false;
 
     public bool EvidenceConfidences { get; init; } = false;
+
+    public TatumMode TatumMode { get; init; } = TatumMode.Default;
 
     public static MusicalQualityOptions AllEnabled { get; } = new()
     {

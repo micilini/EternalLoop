@@ -1,4 +1,3 @@
-# Visual Studio / Rider / local IDE state
 .vs/
 .idea/
 *.user
@@ -7,31 +6,35 @@
 *.userosscache
 *.sln.docstates
 
-# Build outputs
 bin/
 obj/
 [Bb]in/
 [Oo]bj/
 
-# Test outputs
 TestResults/
 coverage/
 coverage.xml
 *.trx
 
-# NuGet / packages
 *.nupkg
 *.snupkg
 packages/
 
-# Local artifacts
 artifacts/
+**/artifacts/
 older-files/
 docs/
 *.zip
 *.7z
 *.rar
 
-# OS files
+modules/AnalysisEngine/tools/beat-this-conversion/output/
+modules/AnalysisEngine/tools/beat-this-conversion/**/*.onnx
+modules/AnalysisEngine/tools/beat-this-conversion/**/*.ort
+modules/AnalysisEngine/tools/beat-this-conversion/**/*.pt
+modules/AnalysisEngine/tools/beat-this-conversion/**/*.pth
+modules/AnalysisEngine/tools/beat-this-conversion/**/*.ckpt
+modules/AnalysisEngine/tools/beat-this-conversion/**/*.safetensors
+
 .DS_Store
 Thumbs.db

@@ -39,7 +39,7 @@
                            SnapsToDevicePixels="True" />
                     <StackPanel Margin="14 0 0 0" VerticalAlignment="Center">
                         <TextBlock Text="EternalLoop" FontSize="18" FontWeight="SemiBold" Foreground="White" />
-                        <TextBlock Text="Offline infinite music player"
+                        <TextBlock Text="Offline adaptive music player"
                                    Style="{StaticResource EL.Text.Caption}"
                                    TextTrimming="CharacterEllipsis"
                                    MaxWidth="210" />
